@@ -10,32 +10,35 @@
  *******************************************************************************/
 package org.eclipse.che.selenium.git;
 
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
+
+import org.eclipse.che.api.core.ConflictException;
+import org.eclipse.che.api.core.ServerException;
+import org.eclipse.che.api.ssh.shared.dto.GenerateSshPairRequest;
+import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.plugin.ssh.key.SshServiceClient;
+import org.eclipse.che.selenium.core.client.TestGitHubServiceClient;
+import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
+import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
+import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Events;
+import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.ImportProjectFromLocation;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Wizard;
-import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
-import org.eclipse.che.selenium.core.client.TestSshServiceClient;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
-
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
-
-import org.eclipse.che.api.core.ConflictException;
-import org.eclipse.che.commons.lang.NameGenerator;
-import org.eclipse.che.selenium.core.client.TestGitHubServiceClient;
-import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
-import org.eclipse.che.selenium.core.workspace.TestWorkspace;
-import org.eclipse.che.selenium.pageobject.Ide;
+import org.eclipse.che.selenium.pageobject.git.Git;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import static org.eclipse.che.dto.server.DtoFactory.newDto;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOADER_TIMEOUT_SEC;
 
 /**
@@ -73,50 +76,60 @@ public class WorkingWithPullConflictsTest {
     @Inject
     private TestWorkspace                               ws;
     @Inject
-    private Ide                                         ide;
+    private Ide                              ide;
     @Inject
-    private DefaultTestUser                             productUser;
+    private DefaultTestUser                  productUser;
     @Inject
     @Named("github.username")
-    private String                                      gitHubUsername;
+    private String                           gitHubUsername;
     @Inject
     @Named("github.password")
-    private String                                      gitHubPassword;
+    private String                           gitHubPassword;
     @Inject
-    private ProjectExplorer                             projectExplorer;
+    private ProjectExplorer                  projectExplorer;
     @Inject
-    private Menu                                        menu;
+    private Menu                             menu;
     @Inject
-    private org.eclipse.che.selenium.pageobject.git.Git git;
+    private Git                              git;
     @Inject
-    private Events                                      events;
+    private Events                           events;
     @Inject
-    private Loader                                      loader;
+    private Loader                           loader;
     @Inject
-    private CodenvyEditor                               editor;
+    private CodenvyEditor                    editor;
     @Inject
-    private Consoles                                    consoles;
+    private Consoles                         consoles;
     @Inject
-    private Wizard                                      projectWizard;
+    private Wizard                           projectWizard;
     @Inject
-    private ImportProjectFromLocation                   importProject;
+    private ImportProjectFromLocation        importProject;
     @Inject
-    private TestSshServiceClient                        testSshServiceClient;
+    private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
     @Inject
-    private TestUserPreferencesServiceClient            testUserPreferencesServiceClient;
+    private TestProjectServiceClient         testProjectServiceClient;
     @Inject
-    private TestProjectServiceClient                    testProjectServiceClient;
+    private TestGitHubServiceClient          gitHubClientService;
     @Inject
-    private TestGitHubServiceClient                     gitHubClientService;
+    private SshServiceClient                 sshServiceClient;
 
     @BeforeClass
     public void prepare() throws Exception {
         try {
-            String publicKey = testSshServiceClient.generateSshKeys(productUser.getAuthToken());
-            gitHubClientService.uploadPublicKey(gitHubUsername, gitHubPassword, publicKey);
-        } catch (ConflictException ignored) {
-            // already generated
+            String publicKey = sshServiceClient.generatePair(newDto(GenerateSshPairRequest.class)
+                                                                     .withName("github.com")
+                                                                     .withService("vcs"))
+                                               .getPublicKey();
+
+            gitHubClientService.uploadPublicKey(gitHubUsername,
+                                                gitHubPassword,
+                                                publicKey);
+        } catch (ServerException e) {
+            // if already generated, ignore.
+            if (!(e.getCause() instanceof ConflictException)) {
+                throw e;
+            }
         }
+
         testUserPreferencesServiceClient.addGitCommitter(productUser.getAuthToken(), gitHubUsername, productUser.getEmail());
 
         ide.open(ws);

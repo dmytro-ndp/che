@@ -48,7 +48,7 @@ public class TestCommandServiceClient {
     }
 
     public void createCommand(CommandDto command, String wsId, String accessToken) throws Exception {
-        requestFactory.fromUrl(apiEndpoint + "workspace/" + wsId + "/command")
+        requestFactory.fromUrl(apiEndpoint + "/workspace/" + wsId + "/command")
                       .setAuthorizationHeader(accessToken)
                       .usePostMethod()
                       .setBody(command)
@@ -57,7 +57,7 @@ public class TestCommandServiceClient {
 
 
     public void deleteCommand(String commandName, String wsId, String authToken) throws Exception {
-        requestFactory.fromUrl(apiEndpoint + "workspace/" + wsId + "/command/" + commandName)
+        requestFactory.fromUrl(apiEndpoint + "/workspace/" + wsId + "/command/" + commandName)
                       .useDeleteMethod()
                       .setAuthorizationHeader(authToken)
                       .request();

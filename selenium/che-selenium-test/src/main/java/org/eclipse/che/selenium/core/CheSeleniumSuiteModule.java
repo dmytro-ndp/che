@@ -15,6 +15,8 @@ import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.name.Names;
 
+import org.eclipse.che.plugin.ssh.key.HttpSshServiceClient;
+import org.eclipse.che.plugin.ssh.key.SshServiceClient;
 import org.eclipse.che.selenium.core.action.ActionsFactory;
 import org.eclipse.che.selenium.core.action.GenericActionsFactory;
 import org.eclipse.che.selenium.core.action.MacOSActionsFactory;
@@ -24,6 +26,7 @@ import org.eclipse.che.selenium.core.client.TestAuthServiceClient;
 import org.eclipse.che.selenium.core.client.TestMachineServiceClient;
 import org.eclipse.che.selenium.core.configuration.SeleniumTestConfiguration;
 import org.eclipse.che.selenium.core.configuration.TestConfiguration;
+import org.eclipse.che.selenium.core.factory.TestHttpJsonRequestFactory;
 import org.eclipse.che.selenium.core.provider.CheTestApiEndpointUrlProvider;
 import org.eclipse.che.selenium.core.provider.CheTestDashboardUrlProvider;
 import org.eclipse.che.selenium.core.provider.CheTestIdeUrlProvider;
@@ -102,5 +105,11 @@ public class CheSeleniumSuiteModule extends AbstractModule {
     @Provides
     public ActionsFactory getActionFactory() {
         return isMac() ? new MacOSActionsFactory() : new GenericActionsFactory();
+    }
+
+    @Provides
+    public SshServiceClient getSshServiceClient(TestApiEndpointUrlProvider apiEndpointUrlProvider,
+                                                TestHttpJsonRequestFactory requestFactory) {
+        return new HttpSshServiceClient(apiEndpointUrlProvider.get().toString(), requestFactory);
     }
 }

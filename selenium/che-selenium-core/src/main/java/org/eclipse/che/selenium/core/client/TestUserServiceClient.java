@@ -43,7 +43,7 @@ public class TestUserServiceClient {
     }
 
     public User getByEmail(String email) throws Exception {
-        String url = apiEndpoint + "user/find?email=" + URLEncoder.encode(email, "UTF-8");
+        String url = apiEndpoint + "/user/find?email=" + URLEncoder.encode(email, "UTF-8");
         HttpJsonResponse response = requestFactory.fromUrl(url)
                                                   .useGetMethod()
                                                   .setAuthorizationHeader(adminTestUser.getAuthToken())
@@ -53,7 +53,7 @@ public class TestUserServiceClient {
     }
 
     public void deleteByEmail(String email) throws Exception {
-        String url = apiEndpoint + "user/" + getByEmail(email).getId();
+        String url = apiEndpoint + "/user/" + getByEmail(email).getId();
         requestFactory.fromUrl(url)
                       .useDeleteMethod()
                       .setAuthorizationHeader(adminTestUser.getAuthToken())
@@ -61,7 +61,7 @@ public class TestUserServiceClient {
     }
 
     public User create(String email, String password) throws Exception {
-        String url = apiEndpoint + "user";
+        String url = apiEndpoint + "/user";
         return requestFactory.fromUrl(url)
                              .usePostMethod()
                              .setAuthorizationHeader(adminTestUser.getAuthToken())
@@ -71,7 +71,7 @@ public class TestUserServiceClient {
     }
 
     public UserDto getUser(String auth) throws Exception {
-        String url = apiEndpoint + "user";
+        String url = apiEndpoint + "/user";
         return requestFactory.fromUrl(url)
                              .useGetMethod()
                              .setAuthorizationHeader(auth)

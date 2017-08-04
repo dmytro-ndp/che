@@ -14,11 +14,14 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
 import org.eclipse.che.api.core.ConflictException;
+import org.eclipse.che.api.core.ServerException;
+import org.eclipse.che.api.ssh.shared.dto.GenerateSshPairRequest;
 import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.plugin.ssh.key.SshServiceClient;
 import org.eclipse.che.selenium.core.client.TestGitHubServiceClient;
-import org.eclipse.che.selenium.core.client.TestSshServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
+import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
@@ -29,11 +32,11 @@ import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Wizard;
-import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.openqa.selenium.Keys;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import static org.eclipse.che.dto.server.DtoFactory.newDto;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOADER_TIMEOUT_SEC;
 
 /**
@@ -70,25 +73,34 @@ public class GitPullTest {
     @Inject
     private Events                                      events;
     @Inject
-    private Loader                                      loader;
+    private Loader                           loader;
     @Inject
-    private CodenvyEditor                               editor;
+    private CodenvyEditor                    editor;
     @Inject
-    private Consoles                                    consoles;
+    private Consoles                         consoles;
     @Inject
-    private TestSshServiceClient                        testSshServiceClient;
+    private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
     @Inject
-    private TestUserPreferencesServiceClient            testUserPreferencesServiceClient;
+    private TestGitHubServiceClient          gitHubClientService;
     @Inject
-    private TestGitHubServiceClient                     gitHubClientService;
+    private SshServiceClient                 sshServiceClient;
 
     @BeforeClass
     public void prepare() throws Exception {
         try {
-            String publicKey = testSshServiceClient.generateSshKeys(productUser.getAuthToken());
-            gitHubClientService.uploadPublicKey(gitHubUsername, gitHubPassword, publicKey);
-        } catch (ConflictException ignored) {
-            // already generated
+            String publicKey = sshServiceClient.generatePair(newDto(GenerateSshPairRequest.class)
+                                                                     .withName("github.com")
+                                                                     .withService("vcs"))
+                                               .getPublicKey();
+
+            gitHubClientService.uploadPublicKey(gitHubUsername,
+                                                gitHubPassword,
+                                                publicKey);
+        } catch (ServerException e) {
+            // if already generated, ignore.
+            if (!(e.getCause() instanceof ConflictException)) {
+                throw e;
+            }
         }
 
         testUserPreferencesServiceClient.addGitCommitter(productUser.getAuthToken(), gitHubUsername, productUser.getEmail());

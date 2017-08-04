@@ -35,7 +35,7 @@ public class TestProfileServiceClient {
     }
 
     public void setAttributes(Map<String, String> attributes, String authToken) throws Exception {
-        requestFactory.fromUrl(apiEndpoint + "profile/attributes")
+        requestFactory.fromUrl(apiEndpoint + "/profile/attributes")
                       .usePutMethod()
                       .setAuthorizationHeader(authToken)
                       .setBody(attributes)

@@ -85,7 +85,7 @@ public class TestFactoryInitializer {
      * Initialize {@link TestFactory} base upon url. Can't be modified.
      */
     public TestFactory fromUrl(String url) throws Exception {
-        HttpJsonRequest httpJsonRequest = requestFactory.fromUrl(apiEndpointProvider.get() + "factory/resolver");
+        HttpJsonRequest httpJsonRequest = requestFactory.fromUrl(apiEndpointProvider.get() + "/factory/resolver");
         httpJsonRequest.setBody(singletonMap("url", url));
         httpJsonRequest.setAuthorizationHeader(defaultUser.getAuthToken());
         HttpJsonResponse response = httpJsonRequest.request();

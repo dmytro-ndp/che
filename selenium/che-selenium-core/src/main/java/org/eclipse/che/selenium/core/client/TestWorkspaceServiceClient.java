@@ -52,7 +52,7 @@ public class TestWorkspaceServiceClient {
     public TestWorkspaceServiceClient(TestApiEndpointUrlProvider apiEndpointProvider,
                                       HttpJsonRequestFactory requestFactory,
                                       TestUserNamespaceResolver testUserNamespaceResolver) {
-        this.baseHttpUrl = apiEndpointProvider.get() + "workspace";
+        this.baseHttpUrl = apiEndpointProvider.get() + "/workspace";
         this.requestFactory = requestFactory;
         this.testUserNamespaceResolver = testUserNamespaceResolver;
     }

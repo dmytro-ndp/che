@@ -40,7 +40,7 @@ public class TestFactoryServiceClient {
     public TestFactoryServiceClient(TestApiEndpointUrlProvider testApiEndpointUrlProvider,
                                     TestIdeUrlProvider ideUrlProvider,
                                     HttpJsonRequestFactory requestFactory) throws Exception {
-        this.factoryApiEndpoint = testApiEndpointUrlProvider.get() + "factory/";
+        this.factoryApiEndpoint = testApiEndpointUrlProvider.get() + "/factory/";
         this.ideUrl = ideUrlProvider.get().toString();
         this.requestFactory = requestFactory;
     }

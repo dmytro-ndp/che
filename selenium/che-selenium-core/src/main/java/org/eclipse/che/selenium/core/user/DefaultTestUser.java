@@ -13,6 +13,8 @@ package org.eclipse.che.selenium.core.user;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import org.eclipse.che.commons.env.EnvironmentContext;
+import org.eclipse.che.commons.subject.SubjectImpl;
 import org.eclipse.che.selenium.core.client.TestAuthServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserServiceClient;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;

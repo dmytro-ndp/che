@@ -20,6 +20,7 @@ import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.provider.TestIdeUrlProvider;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.core.workspace.TestWorkspaceUrlResolver;
+import org.eclipse.che.selenium.pageobject.site.LoginPage;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
@@ -32,15 +33,18 @@ public class Ide {
   private final SeleniumWebDriver seleniumWebDriver;
   private final TestIdeUrlProvider testIdeUrlProvider;
   private final TestWorkspaceUrlResolver testWorkspaceUrlResolver;
+  private final LoginPage loginPage;
 
   @Inject
   public Ide(
       SeleniumWebDriver seleniumWebDriver,
       TestIdeUrlProvider testIdeUrlProvider,
-      TestWorkspaceUrlResolver testWorkspaceUrlResolver) {
+      TestWorkspaceUrlResolver testWorkspaceUrlResolver,
+      LoginPage loginPage) {
     this.seleniumWebDriver = seleniumWebDriver;
     this.testIdeUrlProvider = testIdeUrlProvider;
     this.testWorkspaceUrlResolver = testWorkspaceUrlResolver;
+    this.loginPage = loginPage;
   }
 
   @Deprecated
@@ -49,10 +53,10 @@ public class Ide {
   }
 
   public void open(TestWorkspace testWorkspace) throws Exception {
-    addAuthenticationToken(testWorkspace);
-
     URL workspaceUrl = testWorkspaceUrlResolver.resolve(testWorkspace);
     seleniumWebDriver.get(workspaceUrl.toString());
+
+    loginPage.login(testWorkspace.getOwner().getName(), testWorkspace.getOwner().getPassword());
   }
 
   private void addAuthenticationToken(TestWorkspace testWorkspace) {

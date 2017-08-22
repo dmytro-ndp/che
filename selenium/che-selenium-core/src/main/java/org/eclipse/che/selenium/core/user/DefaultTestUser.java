@@ -36,7 +36,12 @@ public class DefaultTestUser implements TestUser {
       TestAuthServiceClient authServiceClient)
       throws Exception {
     this.testUser =
-        new TestUserImpl(testUserServiceClient, workspaceServiceClient, authServiceClient);
+        new TestUserImpl(
+            "default@some.com",
+            "default",
+            testUserServiceClient,
+            workspaceServiceClient,
+            authServiceClient);
   }
 
   @Override

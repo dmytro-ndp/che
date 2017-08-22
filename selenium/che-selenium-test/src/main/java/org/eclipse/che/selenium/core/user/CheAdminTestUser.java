@@ -10,11 +10,20 @@
  */
 package org.eclipse.che.selenium.core.user;
 
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import org.eclipse.che.selenium.core.client.TestAuthServiceClient;
 
 /** @author Anatolii Bazko */
 @Singleton
 public class CheAdminTestUser implements AdminTestUser {
+
+  private TestAuthServiceClient authServiceClient;
+
+  @Inject
+  public CheAdminTestUser(TestAuthServiceClient authServiceClient) throws Exception {
+    this.authServiceClient = authServiceClient;
+  }
 
   @Override
   public String getEmail() {
@@ -23,12 +32,18 @@ public class CheAdminTestUser implements AdminTestUser {
 
   @Override
   public String getPassword() {
-    return "password";
+    //    return "password";
+    return "admin";
   }
 
   @Override
   public String getAuthToken() {
-    return "auth";
+    //    return "auth";
+    try {
+      return authServiceClient.login(getName(), getPassword());
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
   }
 
   @Override

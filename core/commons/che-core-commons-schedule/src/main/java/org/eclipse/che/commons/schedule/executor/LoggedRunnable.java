@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -40,34 +41,61 @@ public class LoggedRunnable implements Runnable {
           && method.getName().equals("run")
           && method.getParameterTypes().length == 0) {
         LOG.debug(
-            "Invoking method run of class {} instance {}", object.getClass().getName(), object);
+            "Invoking method 'run' of class '{}' instance '{}'",
+            object.getClass().getName(),
+            object);
 
         ((Runnable) object).run();
 
         LOG.debug(
-            "Method of class {} instance {} complete  at {}  sec",
+            "Method of class '{}' instance '{}' is completed in {} sec",
             object.getClass().getName(),
             object,
             TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startTime));
       } else {
         try {
           LOG.debug(
-              "Invoking run method of class {} instance {}", object.getClass().getName(), object);
+              "Invoking method '{}' of class '{}' instance '{}'",
+              method.getName(),
+              object.getClass().getName(),
+              object);
 
           method.invoke(object);
 
           LOG.debug(
-              "Method of class {} instance {} complete  at {}  sec",
+              "Method of class '{}' instance '{}' is completed in {} sec",
               object.getClass().getName(),
               object,
               TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startTime));
         } catch (InvocationTargetException | IllegalAccessException e) {
-          LOG.error(e.getLocalizedMessage());
+          LOG.error(
+              "Error occurred during invocation of method '{}#{}'. Instance: '{}'. Error: {}",
+              object.getClass().getName(),
+              method.getName(),
+              object,
+              e.getMessage(),
+              e);
         }
       }
     } catch (Exception e) {
-      LOG.error(e.getLocalizedMessage(), e);
+      LOG.error(
+          "Error occurred during invocation of method '{}#{}'. Instance: '{}'. Error: {}",
+          object.getClass().getName(),
+          method.getName(),
+          object,
+          e.getMessage(),
+          e);
       throw e;
     }
+  }
+
+  @Override
+  public String toString() {
+    return "LoggedRunnable{"
+        + "methodToInvoke="
+        + object.getClass().getName()
+        + '#'
+        + method.getName()
+        + '}';
   }
 }

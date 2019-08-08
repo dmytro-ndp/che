@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -30,6 +31,7 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.Page;
 import org.eclipse.che.api.core.model.factory.Button;
 import org.eclipse.che.api.factory.server.model.impl.ActionImpl;
 import org.eclipse.che.api.factory.server.model.impl.AuthorImpl;
@@ -42,13 +44,13 @@ import org.eclipse.che.api.factory.server.model.impl.OnAppLoadedImpl;
 import org.eclipse.che.api.factory.server.model.impl.OnProjectsLoadedImpl;
 import org.eclipse.che.api.factory.server.model.impl.PoliciesImpl;
 import org.eclipse.che.api.factory.server.spi.FactoryDao;
-import org.eclipse.che.api.machine.server.model.impl.CommandImpl;
 import org.eclipse.che.api.user.server.model.impl.UserImpl;
+import org.eclipse.che.api.workspace.server.model.impl.CommandImpl;
 import org.eclipse.che.api.workspace.server.model.impl.EnvironmentImpl;
-import org.eclipse.che.api.workspace.server.model.impl.EnvironmentRecipeImpl;
-import org.eclipse.che.api.workspace.server.model.impl.ExtendedMachineImpl;
+import org.eclipse.che.api.workspace.server.model.impl.MachineConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.ProjectConfigImpl;
-import org.eclipse.che.api.workspace.server.model.impl.ServerConf2Impl;
+import org.eclipse.che.api.workspace.server.model.impl.RecipeImpl;
+import org.eclipse.che.api.workspace.server.model.impl.ServerConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.SourceStorageImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceConfigImpl;
 import org.eclipse.che.commons.lang.Pair;
@@ -124,7 +126,10 @@ public class FactoryDaoTest {
     factoryDao.create(factory);
   }
 
-  @Test(expectedExceptions = ConflictException.class)
+  @Test(
+      expectedExceptions = ConflictException.class,
+      expectedExceptionsMessageRegExp =
+          "Factory with name 'factoryName0' already exists for current user")
   public void shouldThrowConflictExceptionWhenCreatingFactoryWithExistingNameAndUserId()
       throws Exception {
     final FactoryImpl factory = createFactory(10, users[0].getId());
@@ -166,7 +171,10 @@ public class FactoryDaoTest {
     assertEquals(factoryDao.getById(update.getId()), update);
   }
 
-  @Test(expectedExceptions = ConflictException.class)
+  @Test(
+      expectedExceptions = ConflictException.class,
+      expectedExceptionsMessageRegExp =
+          "Factory with name 'factoryName1' already exists for current user")
   public void shouldThrowConflictExceptionWhenUpdateFactoryWithExistingNameAndUserId()
       throws Exception {
     final FactoryImpl update = factories[0];
@@ -206,9 +214,9 @@ public class FactoryDaoTest {
   public void shouldGetFactoryByIdAttribute() throws Exception {
     final FactoryImpl factory = factories[0];
     final List<Pair<String, String>> attributes = ImmutableList.of(Pair.of("id", factory.getId()));
-    final List<FactoryImpl> result = factoryDao.getByAttribute(1, 0, attributes);
+    final Page<FactoryImpl> result = factoryDao.getByAttributes(1, 0, attributes);
 
-    assertEquals(new HashSet<>(result), ImmutableSet.of(factory));
+    assertEquals(new HashSet<>(result.getItems()), ImmutableSet.of(factory));
   }
 
   @Test(dependsOnMethods = "shouldUpdateFactory")
@@ -224,17 +232,25 @@ public class FactoryDaoTest {
     factory3.getPolicies().setReferer("ref2");
     factoryDao.update(factory1);
     factoryDao.update(factory3);
-    final List<FactoryImpl> result = factoryDao.getByAttribute(factories.length, 0, attributes);
+    final Page<FactoryImpl> result = factoryDao.getByAttributes(factories.length, 0, attributes);
 
-    assertEquals(new HashSet<>(result), ImmutableSet.of(factories[0], factories[2], factories[4]));
+    assertEquals(
+        new HashSet<>(result.getItems()),
+        ImmutableSet.of(factories[0], factories[2], factories[4]));
   }
 
   @Test
   public void shouldFindAllFactoriesWhenAttributesNotSpecified() throws Exception {
     final List<Pair<String, String>> attributes = emptyList();
-    final List<FactoryImpl> result = factoryDao.getByAttribute(factories.length, 0, attributes);
+    final Page<FactoryImpl> result = factoryDao.getByAttributes(factories.length, 0, attributes);
 
-    assertEquals(new HashSet<>(result), new HashSet<>(asList(factories)));
+    assertEquals(new HashSet<>(result.getItems()), new HashSet<>(asList(factories)));
+  }
+
+  @Test
+  public void shouldFindAllFactoriesOfSpecifiedUser() throws Exception {
+    final Page<FactoryImpl> result = factoryDao.getByUser(users[1].getId(), 30, 0);
+    assertEquals(new HashSet<>(result.getItems()), new HashSet<>(asList(factories[1])));
   }
 
   @Test(expectedExceptions = NotFoundException.class, dependsOnMethods = "shouldGetFactoryById")
@@ -287,7 +303,7 @@ public class FactoryDaoTest {
     return factory;
   }
 
-  public static WorkspaceConfigImpl createWorkspaceConfig(int index) {
+  private static WorkspaceConfigImpl createWorkspaceConfig(int index) {
     // Project Sources configuration
     final SourceStorageImpl source1 = new SourceStorageImpl();
     source1.setType("type1");
@@ -325,33 +341,36 @@ public class FactoryDaoTest {
     final List<CommandImpl> commands = new ArrayList<>(asList(cmd1, cmd2));
 
     // Machine configs
-    final ExtendedMachineImpl exMachine1 = new ExtendedMachineImpl();
-    final ServerConf2Impl serverConf1 =
-        new ServerConf2Impl("2265", "http", singletonMap("prop1", "val"));
-    final ServerConf2Impl serverConf2 =
-        new ServerConf2Impl("2266", "ftp", singletonMap("prop1", "val"));
+    final MachineConfigImpl exMachine1 = new MachineConfigImpl();
+    final ServerConfigImpl serverConf1 =
+        new ServerConfigImpl("2265", "http", "/path1", singletonMap("key", "value"));
+    final ServerConfigImpl serverConf2 =
+        new ServerConfigImpl("2266", "ftp", "/path2", singletonMap("key", "value"));
     exMachine1.setServers(ImmutableMap.of("ref1", serverConf1, "ref2", serverConf2));
-    exMachine1.setAgents(ImmutableList.of("agent5", "agent4"));
+    exMachine1.setInstallers(ImmutableList.of("agent5", "agent4"));
     exMachine1.setAttributes(singletonMap("att1", "val"));
+    exMachine1.setEnv(singletonMap("CHE_ENV", "value"));
 
-    final ExtendedMachineImpl exMachine2 = new ExtendedMachineImpl();
-    final ServerConf2Impl serverConf3 =
-        new ServerConf2Impl("2333", "https", singletonMap("prop2", "val"));
-    final ServerConf2Impl serverConf4 =
-        new ServerConf2Impl("2334", "wss", singletonMap("prop2", "val"));
+    final MachineConfigImpl exMachine2 = new MachineConfigImpl();
+    final ServerConfigImpl serverConf3 =
+        new ServerConfigImpl("2333", "https", "/path1", singletonMap("key", "value"));
+    final ServerConfigImpl serverConf4 =
+        new ServerConfigImpl("2334", "wss", "/path2", singletonMap("key", "value"));
     exMachine2.setServers(ImmutableMap.of("ref1", serverConf3, "ref2", serverConf4));
-    exMachine2.setAgents(ImmutableList.of("agent2", "agent1"));
+    exMachine2.setInstallers(ImmutableList.of("agent2", "agent1"));
     exMachine2.setAttributes(singletonMap("att1", "val"));
+    exMachine2.setEnv(singletonMap("CHE_ENV2", "value"));
 
-    final ExtendedMachineImpl exMachine3 = new ExtendedMachineImpl();
-    final ServerConf2Impl serverConf5 =
-        new ServerConf2Impl("2333", "https", singletonMap("prop2", "val"));
+    final MachineConfigImpl exMachine3 = new MachineConfigImpl();
+    final ServerConfigImpl serverConf5 =
+        new ServerConfigImpl("2333", "https", "/path3", singletonMap("key", "value"));
     exMachine3.setServers(singletonMap("ref1", serverConf5));
-    exMachine3.setAgents(ImmutableList.of("agent6", "agent2"));
+    exMachine3.setInstallers(ImmutableList.of("agent6", "agent2"));
     exMachine3.setAttributes(singletonMap("att1", "val"));
+    exMachine3.setEnv(singletonMap("CHE_ENV3", "value"));
 
     // Environments
-    final EnvironmentRecipeImpl recipe1 = new EnvironmentRecipeImpl();
+    final RecipeImpl recipe1 = new RecipeImpl();
     recipe1.setLocation("https://eclipse.che/Dockerfile");
     recipe1.setType("dockerfile");
     recipe1.setContentType("text/x-dockerfile");
@@ -365,7 +384,7 @@ public class FactoryDaoTest {
                 "machine3", exMachine3)));
     env1.setRecipe(recipe1);
 
-    final EnvironmentRecipeImpl recipe2 = new EnvironmentRecipeImpl();
+    final RecipeImpl recipe2 = new RecipeImpl();
     recipe2.setLocation("https://eclipse.che/Dockerfile");
     recipe2.setType("dockerfile");
     recipe2.setContentType("text/x-dockerfile");

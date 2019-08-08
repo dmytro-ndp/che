@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,7 +22,7 @@ public class EnvironmentContextTest {
 
   @Test
   public void shouldBeAbleToSetEnvContextInSameThread() {
-    //given
+    // given
     EnvironmentContext expected = EnvironmentContext.getCurrent();
     expected.setSubject(new SubjectImpl("user", "id", "token", false));
 
@@ -35,14 +36,14 @@ public class EnvironmentContextTest {
 
   @Test
   public void shouldReturnAnonymousSubjectWhenThereIsNoSubject() {
-    //given
+    // given
     EnvironmentContext expected = EnvironmentContext.getCurrent();
     expected.setSubject(null);
 
-    //when
+    // when
     Subject actualSubject = EnvironmentContext.getCurrent().getSubject();
 
-    //then
+    // then
     assertEquals(actualSubject.getUserName(), Subject.ANONYMOUS.getUserName());
     assertEquals(actualSubject.getUserId(), Subject.ANONYMOUS.getUserId());
     assertEquals(actualSubject.getToken(), Subject.ANONYMOUS.getToken());
@@ -52,7 +53,7 @@ public class EnvironmentContextTest {
 
   @Test(enabled = false)
   public void shouldNotBeAbleToSeeContextInOtherThread() {
-    //given
+    // given
     final EnvironmentContext expected = EnvironmentContext.getCurrent();
     expected.setSubject(new SubjectImpl("user", "id", "token", false));
 

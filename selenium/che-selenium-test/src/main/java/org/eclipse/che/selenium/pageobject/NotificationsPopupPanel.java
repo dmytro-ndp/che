@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,22 +12,17 @@
 package org.eclipse.che.selenium.pageobject;
 
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.EXPECTED_MESS_IN_CONSOLE_SEC;
-import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOADER_TIMEOUT_SEC;
-import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.WIDGET_TIMEOUT_SEC;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import java.util.concurrent.TimeUnit;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
-import org.eclipse.che.selenium.core.utils.WaitUtils;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.By;
-import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
-import org.openqa.selenium.support.ui.ExpectedCondition;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,10 +31,13 @@ import org.slf4j.LoggerFactory;
 public class NotificationsPopupPanel {
   private static final Logger LOG = LoggerFactory.getLogger(NotificationsPopupPanel.class);
 
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
   private final SeleniumWebDriver seleniumWebDriver;
 
   @Inject
-  public NotificationsPopupPanel(SeleniumWebDriver seleniumWebDriver) {
+  public NotificationsPopupPanel(
+      SeleniumWebDriver seleniumWebDriver, SeleniumWebDriverHelper seleniumWebDriverHelper) {
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
     this.seleniumWebDriver = seleniumWebDriver;
     PageFactory.initElements(seleniumWebDriver, this);
   }
@@ -55,46 +54,22 @@ public class NotificationsPopupPanel {
 
   /** wait progress Popup panel appear */
   public void waitProgressBarControl() {
-    new WebDriverWait(seleniumWebDriver, EXPECTED_MESS_IN_CONSOLE_SEC)
-        .until(ExpectedConditions.visibilityOf(progressPopupPanel));
+    waitProgressBarControl(EXPECTED_MESS_IN_CONSOLE_SEC);
   }
 
   /** wait progress Popup panel appear after timeout defined by user */
   public void waitProgressBarControl(int userTimeout) {
-    new WebDriverWait(seleniumWebDriver, userTimeout)
-        .until(ExpectedConditions.visibilityOf(progressPopupPanel));
+    seleniumWebDriverHelper.waitVisibility(progressPopupPanel, userTimeout);
   }
 
   /** wait progress Popup panel disappear */
   public void waitProgressPopupPanelClose() {
-    new WebDriverWait(seleniumWebDriver, EXPECTED_MESS_IN_CONSOLE_SEC)
-        .until(ExpectedConditions.invisibilityOfElementLocated(By.xpath(PROGRESS_POPUP_PANEL_ID)));
+    waitProgressPopupPanelClose(EXPECTED_MESS_IN_CONSOLE_SEC);
   }
 
   /** wait progress Popup panel disappear after timeout defined by user */
   public void waitProgressPopupPanelClose(int userTimeout) {
-    new WebDriverWait(seleniumWebDriver, userTimeout)
-        .until(ExpectedConditions.invisibilityOfElementLocated(By.xpath(PROGRESS_POPUP_PANEL_ID)));
-  }
-
-  /**
-   * get all text from progress popup panel
-   *
-   * @return text from popup panel
-   */
-  public String getAllMessagesFromProgressPopupPanel() {
-    waitProgressBarControl();
-    return progressPopupPanel.getText();
-  }
-
-  /**
-   * get all text from progress popup panel after appearance this with timeout defined by user
-   *
-   * @return text from popup panel
-   */
-  public String getAllMessagesFromProgressPopupPanel(int userTimeout) {
-    waitProgressBarControl(userTimeout);
-    return progressPopupPanel.getText();
+    seleniumWebDriverHelper.waitInvisibility(progressPopupPanel, userTimeout);
   }
 
   /**
@@ -102,12 +77,8 @@ public class NotificationsPopupPanel {
    *
    * @param message expected text
    */
-  public void waitExpectedMessageOnProgressPanelAndClosed(final String message) {
-    new WebDriverWait(seleniumWebDriver, LOADER_TIMEOUT_SEC)
-        .until(
-            (ExpectedCondition<Boolean>)
-                input -> getAllMessagesFromProgressPopupPanel().contains(message));
-    waitProgressPopupPanelClose();
+  public void waitExpectedMessageOnProgressPanelAndClose(final String message) {
+    waitExpectedMessageOnProgressPanelAndClose(message, WIDGET_TIMEOUT_SEC);
   }
 
   /**
@@ -116,24 +87,31 @@ public class NotificationsPopupPanel {
    * @param message expected text
    * @param timeout timeout defined by user
    */
-  public void waitExpectedMessageOnProgressPanelAndClosed(final String message, final int timeout) {
-    try {
-      new WebDriverWait(seleniumWebDriver, timeout)
-          .until(
-              (ExpectedCondition<Boolean>)
-                  input -> getAllMessagesFromProgressPopupPanel(timeout).contains(message));
-    } catch (StaleElementReferenceException ex) {
-      LOG.error(ex.getLocalizedMessage(), ex);
-      WaitUtils.sleepQuietly(500, TimeUnit.MILLISECONDS);
-      new WebDriverWait(seleniumWebDriver, timeout)
-          .until(ExpectedConditions.textToBePresentInElement(progressPopupPanel, message));
-    }
-    waitProgressPopupPanelClose(timeout);
+  public void waitExpectedMessageOnProgressPanelAndClose(final String message, final int timeout) {
+    seleniumWebDriverHelper.waitTextContains(progressPopupPanel, message, timeout);
+
+    // close popup panel
+    closeAllMessages(timeout);
+  }
+
+  public void closeAllMessages(final int timeout) {
+    seleniumWebDriver
+        .findElements(By.xpath(CLOSE_POPUP_IMG_XPATH))
+        .forEach(
+            webElement -> {
+              if (webElement.isDisplayed()) {
+                try {
+                  webElement.click();
+                  seleniumWebDriverHelper.waitInvisibility(webElement, timeout);
+                } catch (WebDriverException e) {
+                  // ignore exception if notification has been closed by timeout
+                }
+              }
+            });
   }
 
   /** wait disappearance of notification popups */
-  public void waitPopUpPanelsIsClosed() {
-    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
-        .until(ExpectedConditions.invisibilityOfElementLocated(By.id(PROGRESS_POPUP_PANEL_ID)));
+  public void waitPopupPanelsAreClosed() {
+    seleniumWebDriverHelper.waitInvisibility(progressPopupPanel, WIDGET_TIMEOUT_SEC);
   }
 }

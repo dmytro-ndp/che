@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -36,8 +37,8 @@ public class CreateFactoryWidget {
 
   private interface Locators {
 
-    //TODO  replace the Xpathes on ids and use it
-    String CLOSE_BTN_ID = "gwt-debug-projectReadOnlyGitUrl-btnClose";
+    // TODO  replace the Xpathes on ids and use it
+    String CLOSE_BTN_ID = "projectReadOnlyGitUrl-btnClose";
     String FACTORY_FIELD_XPATH = "//div[text()='Factory']/parent::div//input[@readonly]";
     String FACTORY_NAME_FIELD = "//input[@placeholder='new-factory-name']";
     String CREATE_BTN =

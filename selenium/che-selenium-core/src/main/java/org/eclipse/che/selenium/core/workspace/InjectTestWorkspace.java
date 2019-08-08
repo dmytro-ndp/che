@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,6 +13,7 @@ package org.eclipse.che.selenium.core.workspace;
 
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import static org.eclipse.che.selenium.core.workspace.WorkspaceTemplate.DEFAULT;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
@@ -21,7 +23,7 @@ import org.eclipse.che.selenium.core.user.TestUser;
 /**
  * To instantiate {@link TestWorkspace} in test classes with none default parameters.
  *
- * @see TestWorkspaceProvider#createWorkspace(TestUser, int, String)
+ * @see TestWorkspaceProvider#createWorkspace(TestUser, int, String, boolean)
  * @author Anatolii Bazko
  */
 @Target({FIELD})
@@ -35,8 +37,11 @@ public @interface InjectTestWorkspace {
   int memoryGb() default -1;
 
   /** Workspace template to create workspace base upon. */
-  String template() default WorkspaceTemplate.DEFAULT;
+  String template() default DEFAULT;
 
   /** The workspace owner. If value is empty then default user will be used. */
   String user() default "";
+
+  /** Should we start workspace just after creation. */
+  boolean startAfterCreation() default true;
 }

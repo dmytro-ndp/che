@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -29,7 +30,7 @@ describe('If recipe has content', () => {
         'dev-machine': {
           'attributes': {'memoryLimitBytes': '2147483648'},
           'servers': {},
-          'agents': ['org.eclipse.che.ws-agent', 'org.eclipse.che.terminal', 'org.eclipse.che.ssh']
+          'volumes': {},
         }
       },
       'recipe': {
@@ -71,12 +72,6 @@ describe('If recipe has content', () => {
       expect(source).toEqual(expectedSource);
     });
 
-    it('the machine should be a dev machine', () => {
-      let isDev = envManager.isDev(machines[0]);
-
-      expect(isDev).toBe(true);
-    });
-
     it('should update environment\'s recipe via machine\'s source', () => {
       let oldMachines = envManager.getMachines(environment),
           oldSource = envManager.getSource(oldMachines[0]),
@@ -106,7 +101,7 @@ describe('If recipe has location', () => {
       'machines': {
         'dev-machine': {
           'servers': {},
-          'agents': ['org.eclipse.che.ws-agent', 'org.eclipse.che.terminal', 'org.eclipse.che.ssh'],
+          'volumes': {},
           'attributes': {'memoryLimitBytes': '2147483648'}
         }
       },
@@ -122,10 +117,10 @@ describe('If recipe has location', () => {
 
   describe('DockerFileEnvironmentManager', () => {
 
-    it('cannot edit environment variables', () => {
+    it('can edit environment variables always true', () => {
       let canEditEnvVariables = envManager.canEditEnvVariables(machines[0]);
 
-      expect(canEditEnvVariables).toBe(false);
+      expect(canEditEnvVariables).toBe(true);
     });
 
     it('should return servers', () => {
@@ -146,12 +141,6 @@ describe('If recipe has location', () => {
       let source = envManager.getSource(machines[0]);
 
       expect(source).toEqual(null);
-    });
-
-    it('the machine should be a dev machine', () => {
-      let isDev = envManager.isDev(machines[0]);
-
-      expect(isDev).toBe(true);
     });
 
   });

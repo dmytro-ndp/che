@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,7 +15,7 @@ import static java.util.Collections.singletonList;
 import static java.util.Objects.*;
 import static org.eclipse.che.dto.server.DtoFactory.*;
 import static org.eclipse.che.dto.server.DtoFactory.newDto;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
@@ -80,7 +81,7 @@ public class FactoryBaseValidatorTest {
             .withCreator(newDto(AuthorDto.class).withUserId("userid"));
     final UserImpl user = new UserImpl("userid", "email", "name");
 
-    when(userDao.getById("userid")).thenReturn(user);
+    lenient().when(userDao.getById("userid")).thenReturn(user);
     validator = new TesterFactoryBaseValidator();
   }
 
@@ -99,12 +100,11 @@ public class FactoryBaseValidatorTest {
   }
 
   @Test(
-    expectedExceptions = ApiException.class,
-    expectedExceptionsMessageRegExp =
-        "The parameter project.source.location has a value submitted http://codenvy.com/git/04%2 with a value that is "
-            + "unexpected. "
-            + "For more information, please visit http://docs.codenvy.com/user/project-lifecycle/#configuration-reference"
-  )
+      expectedExceptions = ApiException.class,
+      expectedExceptionsMessageRegExp =
+          "The parameter project.source.location has a value submitted http://codenvy.com/git/04%2 with a value that is "
+              + "unexpected. "
+              + "For more information, please visit https://www.eclipse.org/che/docs/workspace-data-model.html#projects")
   public void shouldNotValidateIfStorageLocationContainIncorrectEncodedSymbol()
       throws ApiException {
     // given
@@ -167,12 +167,11 @@ public class FactoryBaseValidatorTest {
   }
 
   @Test(
-    dataProvider = "invalidProjectNamesProvider",
-    expectedExceptions = ApiException.class,
-    expectedExceptionsMessageRegExp =
-        "Project name must contain only Latin letters, "
-            + "digits or these following special characters -._."
-  )
+      dataProvider = "invalidProjectNamesProvider",
+      expectedExceptions = ApiException.class,
+      expectedExceptionsMessageRegExp =
+          "Project name must contain only Latin letters, "
+              + "digits or these following special characters -._.")
   public void shouldThrowFactoryUrlExceptionIfProjectNameInvalid(String projectName)
       throws Exception {
     // given
@@ -240,27 +239,24 @@ public class FactoryBaseValidatorTest {
   }
 
   @Test(
-    expectedExceptions = ApiException.class,
-    expectedExceptionsMessageRegExp = FactoryConstants.INVALID_SINCE_MESSAGE
-  )
+      expectedExceptions = ApiException.class,
+      expectedExceptionsMessageRegExp = FactoryConstants.INVALID_SINCE_MESSAGE)
   public void shouldNotValidateIfSinceBeforeCurrent() throws ApiException {
     factory.withPolicies(newDto(PoliciesDto.class).withSince(1L));
     validator.validateCurrentTimeAfterSinceUntil(factory);
   }
 
   @Test(
-    expectedExceptions = ApiException.class,
-    expectedExceptionsMessageRegExp = FactoryConstants.INVALID_UNTIL_MESSAGE
-  )
+      expectedExceptions = ApiException.class,
+      expectedExceptionsMessageRegExp = FactoryConstants.INVALID_UNTIL_MESSAGE)
   public void shouldNotValidateIfUntilBeforeCurrent() throws ApiException {
     factory.withPolicies(newDto(PoliciesDto.class).withUntil(1L));
     validator.validateCurrentTimeAfterSinceUntil(factory);
   }
 
   @Test(
-    expectedExceptions = ApiException.class,
-    expectedExceptionsMessageRegExp = FactoryConstants.INVALID_SINCEUNTIL_MESSAGE
-  )
+      expectedExceptions = ApiException.class,
+      expectedExceptionsMessageRegExp = FactoryConstants.INVALID_SINCEUNTIL_MESSAGE)
   public void shouldNotValidateIfUntilBeforeSince() throws ApiException {
     factory.withPolicies(newDto(PoliciesDto.class).withSince(2L).withUntil(1L));
 
@@ -268,9 +264,8 @@ public class FactoryBaseValidatorTest {
   }
 
   @Test(
-    expectedExceptions = ApiException.class,
-    expectedExceptionsMessageRegExp = FactoryConstants.ILLEGAL_FACTORY_BY_UNTIL_MESSAGE
-  )
+      expectedExceptions = ApiException.class,
+      expectedExceptionsMessageRegExp = FactoryConstants.ILLEGAL_FACTORY_BY_UNTIL_MESSAGE)
   public void shouldNotValidateIfUntilBeforeCurrentTime() throws ApiException {
     Long currentTime = new Date().getTime();
     factory.withPolicies(newDto(PoliciesDto.class).withUntil(currentTime - 10000L));
@@ -289,9 +284,8 @@ public class FactoryBaseValidatorTest {
   }
 
   @Test(
-    expectedExceptions = ApiException.class,
-    expectedExceptionsMessageRegExp = FactoryConstants.ILLEGAL_FACTORY_BY_SINCE_MESSAGE
-  )
+      expectedExceptions = ApiException.class,
+      expectedExceptionsMessageRegExp = FactoryConstants.ILLEGAL_FACTORY_BY_SINCE_MESSAGE)
   public void shouldNotValidateIfUntilSinceAfterCurrentTime() throws ApiException {
     Long currentTime = new Date().getTime();
     factory.withPolicies(newDto(PoliciesDto.class).withSince(currentTime + 10000L));
@@ -316,70 +310,70 @@ public class FactoryBaseValidatorTest {
 
   @Test(expectedExceptions = BadRequestException.class)
   public void shouldNotValidateOpenfileActionIfInWrongSectionOnAppClosed() throws Exception {
-    //given
+    // given
     validator = new TesterFactoryBaseValidator();
     List<IdeActionDto> actions = singletonList(newDto(IdeActionDto.class).withId("openFile"));
     IdeDto ide =
         newDto(IdeDto.class).withOnAppClosed(newDto(OnAppClosedDto.class).withActions(actions));
     FactoryDto factoryWithAccountId = requireNonNull(getInstance().clone(factory)).withIde(ide);
-    //when
+    // when
     validator.validateProjectActions(factoryWithAccountId);
   }
 
   @Test(expectedExceptions = BadRequestException.class)
   public void shouldNotValidateFindReplaceActionIfInWrongSectionOnAppLoaded() throws Exception {
-    //given
+    // given
     validator = new TesterFactoryBaseValidator();
     List<IdeActionDto> actions = singletonList(newDto(IdeActionDto.class).withId("findReplace"));
     IdeDto ide =
         newDto(IdeDto.class).withOnAppLoaded(newDto(OnAppLoadedDto.class).withActions(actions));
     FactoryDto factoryWithAccountId = requireNonNull(getInstance().clone(factory)).withIde(ide);
-    //when
+    // when
     validator.validateProjectActions(factoryWithAccountId);
   }
 
   @Test(expectedExceptions = BadRequestException.class)
   public void shouldNotValidateIfOpenfileActionInsufficientParams() throws Exception {
-    //given
+    // given
     validator = new TesterFactoryBaseValidator();
     List<IdeActionDto> actions = singletonList(newDto(IdeActionDto.class).withId("openFile"));
     IdeDto ide =
         newDto(IdeDto.class)
             .withOnProjectsLoaded(newDto(OnProjectsLoadedDto.class).withActions(actions));
     FactoryDto factoryWithAccountId = requireNonNull(getInstance().clone(factory)).withIde(ide);
-    //when
+    // when
     validator.validateProjectActions(factoryWithAccountId);
   }
 
   @Test(expectedExceptions = BadRequestException.class)
   public void shouldNotValidateIfrunCommandActionInsufficientParams() throws Exception {
-    //given
+    // given
     validator = new TesterFactoryBaseValidator();
     List<IdeActionDto> actions = singletonList(newDto(IdeActionDto.class).withId("openFile"));
     IdeDto ide =
         newDto(IdeDto.class)
             .withOnProjectsLoaded(newDto(OnProjectsLoadedDto.class).withActions(actions));
     FactoryDto factoryWithAccountId = requireNonNull(getInstance().clone(factory)).withIde(ide);
-    //when
+    // when
     validator.validateProjectActions(factoryWithAccountId);
   }
 
   @Test(expectedExceptions = BadRequestException.class)
   public void shouldNotValidateIfOpenWelcomePageActionInsufficientParams() throws Exception {
-    //given
+    // given
     validator = new TesterFactoryBaseValidator();
     List<IdeActionDto> actions =
         singletonList(newDto(IdeActionDto.class).withId("openWelcomePage"));
     IdeDto ide =
         newDto(IdeDto.class).withOnAppLoaded((newDto(OnAppLoadedDto.class).withActions(actions)));
     FactoryDto factoryWithAccountId = requireNonNull(getInstance().clone(factory)).withIde(ide);
-    //when
+    // when
     validator.validateProjectActions(factoryWithAccountId);
   }
 
   @Test(expectedExceptions = BadRequestException.class)
   public void shouldNotValidateIfFindReplaceActionInsufficientParams() throws Exception {
-    //given
+    // given
     validator = new TesterFactoryBaseValidator();
     Map<String, String> params = new HashMap<>();
     params.put("in", "pom.xml");
@@ -391,13 +385,13 @@ public class FactoryBaseValidatorTest {
         newDto(IdeDto.class)
             .withOnProjectsLoaded(newDto(OnProjectsLoadedDto.class).withActions(actions));
     FactoryDto factoryWithAccountId = requireNonNull(getInstance().clone(factory)).withIde(ide);
-    //when
+    // when
     validator.validateProjectActions(factoryWithAccountId);
   }
 
   @Test
   public void shouldValidateFindReplaceAction() throws Exception {
-    //given
+    // given
     validator = new TesterFactoryBaseValidator();
     Map<String, String> params = new HashMap<>();
     params.put("in", "pom.xml");
@@ -409,13 +403,13 @@ public class FactoryBaseValidatorTest {
         newDto(IdeDto.class)
             .withOnProjectsLoaded(newDto(OnProjectsLoadedDto.class).withActions(actions));
     FactoryDto factoryWithAccountId = requireNonNull(getInstance().clone(factory)).withIde(ide);
-    //when
+    // when
     validator.validateProjectActions(factoryWithAccountId);
   }
 
   @Test
   public void shouldValidateOpenfileAction() throws Exception {
-    //given
+    // given
     validator = new TesterFactoryBaseValidator();
     Map<String, String> params = new HashMap<>();
     params.put("file", "pom.xml");
@@ -425,7 +419,7 @@ public class FactoryBaseValidatorTest {
         newDto(IdeDto.class)
             .withOnProjectsLoaded(newDto(OnProjectsLoadedDto.class).withActions(actions));
     FactoryDto factoryWithAccountId = requireNonNull(getInstance().clone(factory)).withIde(ide);
-    //when
+    // when
     validator.validateProjectActions(factoryWithAccountId);
   }
 

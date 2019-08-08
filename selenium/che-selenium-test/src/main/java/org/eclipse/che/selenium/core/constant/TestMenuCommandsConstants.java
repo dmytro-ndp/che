@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,7 @@ public interface TestMenuCommandsConstants {
     String STOP_WORKSPACE = WORKSPACE_MENU_PREFIX + "stopWorkspace";
     String CREATE_FACTORY = WORKSPACE_MENU_PREFIX + "configureFactoryAction";
     String STOP = WORKSPACE_MENU_PREFIX + "stopWorkspace";
+    String DOWNLOAD_AS_ZIP = WORKSPACE_MENU_PREFIX + "downloadWsAsZipAction";
   }
 
   interface Project {
@@ -32,6 +34,8 @@ public interface TestMenuCommandsConstants {
     String CONFIGURATION = PROJECT_MENU_PREFIX + "projectConfiguration";
     String CONFIGURE_CLASSPATH = PROJECT_MENU_PREFIX + "projectProperties";
     String SHOW_HIDE_HIDDEN_FILES = PROJECT_MENU_PREFIX + "showHideHiddenFiles";
+    String UPDATE_PROJECT_CONFIGURATION = PROJECT_MENU_PREFIX + "projectConfiguration";
+    String DOWNLOAD_AS_ZIP = PROJECT_MENU_PREFIX + "downloadAsZipAction";
 
     interface New {
       String NEW = PROJECT_MENU_PREFIX + "newGroup";
@@ -61,7 +65,6 @@ public interface TestMenuCommandsConstants {
     String RENAME = EDIT_MENU_PREFIX + "renameResource";
     String DELETE = EDIT_MENU_PREFIX + "deleteItem";
     String FIND = EDIT_MENU_PREFIX + "fullTextSearch";
-    String REVEAL_RESOURCE = EDIT_MENU_PREFIX + "scrollFromSource";
     String OPEN_RECENT_FILE = EDIT_MENU_PREFIX + "openRecentFiles";
 
     interface Recent {
@@ -84,11 +87,22 @@ public interface TestMenuCommandsConstants {
     String ORGANIZE_IMPORTS = ASSISTANT_MENU_PREFIX + "organizeImports";
     String GENERATE_EFFECTIVE_POM = ASSISTANT_MENU_PREFIX + "getEffectivePom";
     String QUICK_FIX = ASSISTANT_MENU_PREFIX + "quickFix";
+    String FIND_DEFINITION = ASSISTANT_MENU_PREFIX + "LSFindDefinitionAction";
+    String FIND_REFERENCES = ASSISTANT_MENU_PREFIX + "LSFindReferencesAction";
+    String GO_TO_SYMBOL = ASSISTANT_MENU_PREFIX + "LSGoToSymbolAction";
+    String FIND_PROJECT_SYMBOL = ASSISTANT_MENU_PREFIX + "LSFindSymbolAction";
+
+    interface ToolWindows {
+      String TOOL_WINDOWS = ASSISTANT_MENU_PREFIX + "toolWindows";
+      String CONTRIBUTE_TOOL_WIDOWS =
+          ASSISTANT_MENU_PREFIX + "Tool Windows/contributePartDisplayingMode";
+    }
 
     interface Refactoring {
       String REFACTORING = ASSISTANT_MENU_PREFIX + "assistantRefactoringGroup";
       String MOVE = ASSISTANT_MENU_PREFIX + "Refactoring/javaMoveRefactoring";
       String RENAME = ASSISTANT_MENU_PREFIX + "Refactoring/javaRenameRefactoring";
+      String LS_RENAME = ASSISTANT_MENU_PREFIX + "Refactoring/LS.rename";
     }
   }
 
@@ -101,15 +115,6 @@ public interface TestMenuCommandsConstants {
     String DEBUG_CONFIGURATION = "gwt-debug-topmenu/Run/Debug Configurations";
     String END_DEBUG_SESSION = "gwt-debug-topmenu/Run/disconnectDebug";
     String TEST = "gwt-debug-topmenu/Run/TestingMainGroup";
-
-    interface Test {
-      String TEST_NG_TEST = "topmenu/Run/Test/Run Test";
-      String TEST_NG_CLASS = "gwt-debug-topmenu/Run/Test/TestNGActionRunClass";
-      String TEST_NG_PROJECT = "gwt-debug-topmenu/Run/Test/TestNGActionRunAllContext";
-      String TEST_NG_XML_SUITE = "gwt-debug-topmenu/Run/Test/TestNGActionRunXMLContext";
-      String JUNIT_TEST = "gwt-debug-topmenu/Run/Test/RunTest";
-      String JUNIT_PROJECT = "gwt-debug-topmenu/Run/Test/TestJUnitActionRunAllContext";
-    }
   }
 
   interface Profile {
@@ -138,6 +143,7 @@ public interface TestMenuCommandsConstants {
     String PROJECT_GIT_URL = GIT_MENU_PREFFIX + "gitUrl";
     String INITIALIZE_REPOSITORY = GIT_MENU_PREFFIX + "gitInitRepository";
     String DELETE_REPOSITORY = GIT_MENU_PREFFIX + "gitDeleteRepository";
+    String REVERT_COMMIT = GIT_MENU_PREFFIX + "gitRevertCommit";
 
     interface Remotes {
       String REMOTES_TOP = "gwt-debug-topmenu/Git/gitRemoteGroup";
@@ -153,29 +159,6 @@ public interface TestMenuCommandsConstants {
       String COMPARE_WITH_BRANCH = "gwt-debug-topmenu/Git/Compare/gitCompareWithBranch";
       String COMPARE_WITH_REVISION = "gwt-debug-topmenu/Git/Compare/gitCompareWithRevision";
     }
-  }
-
-  interface Subversion {
-    String SUBVERSION_MENU_PREFIX = "topmenu/Subversion/";
-    String SUBVERSION = "gwt-debug-MenuItem/Subversion-true";
-    String SVN_STATUS = SUBVERSION_MENU_PREFIX + "Status";
-    String SVN_VIEW_LOG = SUBVERSION_MENU_PREFIX + "View Log";
-    String SVN_VIEW_DIFF = SUBVERSION_MENU_PREFIX + "View Diff";
-    String SVN_UPDATE = SUBVERSION_MENU_PREFIX + "Update";
-    String SVN_UPDATE_TO_REVISION = SUBVERSION_MENU_PREFIX + "Update to Revision...";
-    String SVN_COMMIT = SUBVERSION_MENU_PREFIX + "Commit...";
-    String SVN_RESOLVE = SUBVERSION_MENU_PREFIX + "Resolve...";
-    String SVN_COPY = SUBVERSION_MENU_PREFIX + "Copy...";
-    String SVN_MOVE = SUBVERSION_MENU_PREFIX + "Move...";
-    String SVN_MERGE = SUBVERSION_MENU_PREFIX + "Merge...";
-    String SVN_EXPORT = SUBVERSION_MENU_PREFIX + "Export...";
-    String SVN_ADD = SUBVERSION_MENU_PREFIX + "Add";
-    String SVN_DELETE = SUBVERSION_MENU_PREFIX + "Delete";
-    String SVN_REVERT = SUBVERSION_MENU_PREFIX + "Revert...";
-    String SVN_GET_LOCK = SUBVERSION_MENU_PREFIX + "Get Lock";
-    String SVN_RELEASE_LOCK = SUBVERSION_MENU_PREFIX + "Release Lock";
-    String SVN_CLEAN_UP = SUBVERSION_MENU_PREFIX + "Clean Up";
-    String SVN_PROPERTIES = SUBVERSION_MENU_PREFIX + "Properties";
   }
 
   interface Help {
@@ -198,4 +181,9 @@ public interface TestMenuCommandsConstants {
     String ITEM_PREFFIX_ID = "gwt-debug-CommandsGroup/";
     String COMMAND_LIST_XPATH = "//div[@id='gwt-debug-dropDownHeader'][2]";
   }
+
+  String TEST_NG_TEST_DROP_DAWN_ITEM = "topmenu/Run/Test/Run Test";
+  String JUNIT_TEST_DROP_DAWN_ITEM = "gwt-debug-topmenu/Run/Test/TestJUnitActionRun";
+
+  String TEST_DROP_DAWN_ITEM = "gwt-debug-topmenu/Run/Test/RunTest";
 }

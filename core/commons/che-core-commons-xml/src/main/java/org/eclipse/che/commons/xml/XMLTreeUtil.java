@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -124,7 +125,7 @@ public final class XMLTreeUtil {
     for (NewAttribute attribute : element.getAttributes()) {
       len += 1 + attributeLength(attribute); // ' ' + 'attr="value"' or 'pref:attr="value"'
     }
-    //if is void add +1 '/'
+    // if is void add +1 '/'
     return element.isVoid() ? len + 1 : len;
   }
 
@@ -135,7 +136,7 @@ public final class XMLTreeUtil {
   public static int attributeLength(NewAttribute attribute) {
     int len = 0;
     if (attribute.hasPrefix()) {
-      len += attribute.getPrefix().length() + 1; //prefix  + ':'
+      len += attribute.getPrefix().length() + 1; // prefix  + ':'
     }
     len += attribute.getName().length() + attribute.getValue().length() + 3;
     return len;

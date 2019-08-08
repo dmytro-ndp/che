@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,34 +18,28 @@
  */
 export class CheSlider {
 
-  /**
-   * Default constructor that is using resource
-   * @ngInject for Dependency injection
-   */
-  constructor () {
-    this.restrict = 'E';
+  restrict = 'E';
 
-    this.replace = true;
-    this.transclude = true;
-    this.templateUrl = 'components/widget/slider/che-slider.html';
+  replace = true;
+  transclude = true;
+  templateUrl = 'components/widget/slider/che-slider.html';
 
-    // scope values
-    this.scope = {
-      sliderValue : '=cheValue',
-      labelName: '@cheLabelName',
-      captionUnits: '@cheCaptionUnits',
-      captionValueDivider: '@cheCaptionValueDivider',
-      captionMaxValue: '@cheCaptionMaxValue'
-    };
-  }
+  // scope values
+  scope = {
+    sliderValue : '=cheValue',
+    labelName: '@cheLabelName',
+    captionUnits: '@cheCaptionUnits',
+    captionValueDivider: '@cheCaptionValueDivider',
+    captionMaxValue: '@cheCaptionMaxValue'
+  };
 
-  compile (element, attrs) {
-    var keys = Object.keys(attrs);
+  compile($element: ng.IAugmentedJQuery, $attrs: ng.IAttributes) {
+    const keys = Object.keys($attrs);
 
     // search the selected field
-    var sliderElement = element.find('md-slider');
+    const sliderElement = $element.find('md-slider');
 
-    keys.forEach((key) => {
+    keys.forEach((key: string) => {
 
       // don't reapply internal properties
       if (key.indexOf('$') === 0) {
@@ -58,7 +53,7 @@ export class CheSlider {
       if (key === 'ngModel') {
         return;
       }
-      var value = attrs[key];
+      let value = $attrs[key];
 
       // handle empty values as boolean
       if (value === '') {
@@ -66,13 +61,12 @@ export class CheSlider {
       }
 
       // set the value of the attribute
-      sliderElement.attr(attrs.$attr[key], value);
+      sliderElement.attr($attrs.$attr[key], value);
 
-      element.removeAttr(attrs.$attr[key]);
+      $element.removeAttr($attrs.$attr[key]);
 
     });
 
   }
 
-  link () { }
 }

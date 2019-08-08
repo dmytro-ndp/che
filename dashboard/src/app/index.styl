@@ -1,3 +1,5 @@
+@import '../../node_modules/bootstrap-styl/bootstrap/index.styl'
+@import '../components/widget'
 @import 'colors/che-colors.styl'
 
 che-separator()
@@ -17,11 +19,6 @@ che-developers-face()
   height 14px
   width 14px
   padding 0
-
-@import '../../bower_components/bootstrap-stylus/bootstrap/index'
-@import '../components/widget'
-@import '../components/codemirror/codemirror'
-@import 'projects/projects-config'
 
 $che-logs-output-font = "Droid Sans Mono", monospace
 
@@ -53,7 +50,6 @@ md-sidenav > *
   min-width 200px
 
 html
-
 body
   font-size 13px
   font-family 'Open Sans'
@@ -68,7 +64,7 @@ input
   font-family 'Open Sans'
 
 label
- margin-bottom 0
+  margin-bottom 0
 
 .h1 .small, .h1 small, .h2 .small, .h2 small, .h3 .small, .h3 small, h1 .small, h1 small, h2 .small, h2 small, h3 .small, h3 small, h4 .small, h4 small, h5 .small, .h5 small, h6 small, h6 .small
   font-size 65%
@@ -102,12 +98,11 @@ md-option:hover
   min-width 320px
 
 .progress-line
-  top 0
+  position absolute
   left 0
   right 0
   height 5px
-  position absolute
-  z-index 2147483647
+  z-index 80
 
 .main-page-loader
   position absolute
@@ -130,10 +125,9 @@ md-option:hover
 
 .not-visible
   visibility hidden
+
 // injector
 // endinjector
-
-
 
 .che-logo
   width 137px
@@ -160,9 +154,12 @@ md-option:hover
   opacity 1
 
 @keyframes popInEffect
-  0% { opacity: 0}
-  100% { opacity: 1}
-
+  0% {
+    opacity: 0
+  }
+  100% {
+    opacity: 1
+  }
 
 /*
 .ide-show.ng-hide-remove
@@ -179,20 +176,17 @@ md-option:hover
 
 ::-webkit-scrollbar-track
   border-radius 5px
-  background rgba(0,0,0,0.1)
-
+  background rgba(0, 0, 0, 0.1)
 
 ::-webkit-scrollbar-thumb
   border-radius 5px
-  background rgba(0,0,0,0.2)
-
+  background rgba(0, 0, 0, 0.2)
 
 ::-webkit-scrollbar-thumb:hover
-  background rgba(0,0,0,0.4)
+  background rgba(0, 0, 0, 0.4)
 
 ::-webkit-scrollbar-thumb:window-inactive
-  background rgba(0,0,0,0.05)
-
+  background rgba(0, 0, 0, 0.05)
 
 .spinner
   width 120px
@@ -212,17 +206,14 @@ md-option:hover
 .spinner .rect2
   animation-delay -1.1s
 
-
 .spinner .rect3
   animation-delay -1.0s
-
 
 @-webkit-keyframes sk-stretchdelay
   0%, 40%, 100%
     -webkit-transform scaleY(0.4)
   20%
     -webkit-transform scaleY(1.0)
-
 
 @keyframes sk-stretchdelay
   0%, 40%, 100%
@@ -238,7 +229,41 @@ md-option:hover
 .noselect
   user-select none
 
+md-tabs-canvas md-tab-item
+  margin-right -1px
+  .md-tab.md-active
+    border-bottom 5px solid #fdb940
+    height 100%
+
+.error
+  color $error-color
+
+md-tabs-wrapper
+  z-index 1
+  md-tab-item
+    background-color inherit !important
+    .error-state, .warning-state
+      position absolute
+      display inline-block
+      font-size 14px
+      margin-top 5px
+      margin-left -15px
+    .error-state
+      color $error-color !important
+
+    .warning-state
+      color $warning-color !important
+      margin-left -18px
+
 .popover
   font-family 'Open Sans'
   font-size 12px
   border-radius 2px
+
+.authorization-error
+  color: $error-color
+  font-weight: 600
+  width: 100%
+  text-align: center
+  position: absolute
+  top: 50%

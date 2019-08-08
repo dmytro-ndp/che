@@ -1,14 +1,16 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
+import {CheAPIBuilder} from './che-api-builder.factory';
 
 /**
  * Tests of the CheProjectReferenceBuilder
@@ -19,18 +21,17 @@ describe('CheProjectReferenceBuilder', function(){
   /**
    * For creating builders.
    */
-  var apiBuilder;
+  let apiBuilder;
 
   /**
    *  setup module
    */
   beforeEach(angular.mock.module('userDashboard'));
 
-
   /**
    * Inject builder
    */
-  beforeEach(inject(function(cheAPIBuilder) {
+  beforeEach(inject(function(cheAPIBuilder: CheAPIBuilder) {
     apiBuilder = cheAPIBuilder;
   }));
 
@@ -39,17 +40,14 @@ describe('CheProjectReferenceBuilder', function(){
    */
   it('check builder', function() {
 
-    var projectReferenceBuilder = apiBuilder.getProjectReferenceBuilder();
+    const projectReferenceBuilder = apiBuilder.getProjectReferenceBuilder();
 
-    var name = 'myProject';
-    var projectReference = projectReferenceBuilder.withName(name).build();
-
+    const name = 'myProject';
+    const projectReference = projectReferenceBuilder.withName(name).build();
 
     // check values
     expect(projectReference.name).toEqual(name);
 
   });
-
-
 
 });

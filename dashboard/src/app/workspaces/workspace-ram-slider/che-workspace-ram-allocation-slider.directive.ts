@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,30 +16,25 @@
  * It will change upon width of the screen
  * @author Oleksii Kurinnyi
  */
-export class CheWorkspaceRamAllocationSlider {
+export class CheWorkspaceRamAllocationSlider implements ng.IDirective {
 
-  /**
-   * Default constructor that is using resource
-   * @ngInject for Dependency injection
-   */
-  constructor () {
-    this.restrict = 'E';
+  restrict = 'E';
 
-    this.replace = true;
-    this.templateUrl = 'app/workspaces/workspace-ram-slider/che-workspace-ram-allocation-slider.html';
+  replace = true;
+  templateUrl = 'app/workspaces/workspace-ram-slider/che-workspace-ram-allocation-slider.html';
 
-    // we require ngModel as we want to use it inside our directive
-    this.require = 'ngModel';
+  // we require ngModel as we want to use it inside our directive
+  require = 'ngModel';
 
-    this.bindToController = true;
+  bindToController = true;
 
-    this.controller = 'CheWorkspaceRamAllocationSliderController';
-    this.controllerAs = 'cheWorkspaceRamAllocationSliderController';
+  controller = 'CheWorkspaceRamAllocationSliderController';
+  controllerAs = 'cheWorkspaceRamAllocationSliderController';
 
-    // scope values
-    this.scope = {
-      ngModel: '=',
-      cheOnChange: '&'
-    };
-  }
+  // scope values
+  scope = {
+    ngModel: '=',
+    cheOnChange: '&'
+  };
+
 }

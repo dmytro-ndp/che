@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,7 +16,7 @@ import static java.util.Collections.emptyEnumeration;
 import static org.eclipse.che.commons.test.SystemPropertiesHelper.overrideSystemProperties;
 import static org.eclipse.che.inject.CheBootstrap.CHE_LOCAL_CONF_DIR;
 import static org.eclipse.che.inject.CheBootstrap.PROPERTIES_ALIASES_CONFIG_FILE;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -279,6 +280,28 @@ public class CheBootstrapTest {
   public void processesPropertyAliases() throws Exception {
     Properties cheProperties = new Properties();
     cheProperties.put("very.new.some.name", "some_value");
+    writePropertiesFile(che, "che.properties", cheProperties);
+
+    Properties aliases = new Properties();
+    aliases.put("very.new.some.name", "new.some.name, che.some.name");
+    writePropertiesFile(che.getParentFile(), PROPERTIES_ALIASES_CONFIG_FILE, aliases);
+
+    ModuleScanner.modules.add(binder -> binder.bind(TestConfAliasComponent.class));
+
+    cheBootstrap.contextInitialized(new ServletContextEvent(servletContext));
+
+    Injector injector = retrieveComponentFromServletContext(Injector.class);
+
+    TestConfAliasComponent testComponent = injector.getInstance(TestConfAliasComponent.class);
+    assertEquals(testComponent.string, "some_value");
+    assertEquals(testComponent.otherString, "some_value");
+    assertEquals(testComponent.otherOtherString, "some_value");
+  }
+
+  @Test
+  public void processesOld2NewPropertyAliases() throws Exception {
+    Properties cheProperties = new Properties();
+    cheProperties.put("che.some.name", "some_value");
     writePropertiesFile(che, "che.properties", cheProperties);
 
     Properties aliases = new Properties();

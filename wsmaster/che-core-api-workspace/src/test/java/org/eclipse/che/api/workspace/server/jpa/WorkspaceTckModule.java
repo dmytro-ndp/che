@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,17 +14,24 @@ package org.eclipse.che.api.workspace.server.jpa;
 import com.google.inject.TypeLiteral;
 import java.util.Collection;
 import org.eclipse.che.account.spi.AccountImpl;
-import org.eclipse.che.api.machine.server.model.impl.CommandImpl;
-import org.eclipse.che.api.machine.server.model.impl.SnapshotImpl;
-import org.eclipse.che.api.machine.server.recipe.RecipeImpl;
+import org.eclipse.che.api.workspace.server.model.impl.CommandImpl;
 import org.eclipse.che.api.workspace.server.model.impl.EnvironmentImpl;
-import org.eclipse.che.api.workspace.server.model.impl.EnvironmentRecipeImpl;
-import org.eclipse.che.api.workspace.server.model.impl.ExtendedMachineImpl;
+import org.eclipse.che.api.workspace.server.model.impl.MachineConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.ProjectConfigImpl;
-import org.eclipse.che.api.workspace.server.model.impl.ServerConf2Impl;
+import org.eclipse.che.api.workspace.server.model.impl.RecipeImpl;
+import org.eclipse.che.api.workspace.server.model.impl.ServerConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.SourceStorageImpl;
+import org.eclipse.che.api.workspace.server.model.impl.VolumeImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
+import org.eclipse.che.api.workspace.server.model.impl.devfile.ActionImpl;
+import org.eclipse.che.api.workspace.server.model.impl.devfile.ComponentImpl;
+import org.eclipse.che.api.workspace.server.model.impl.devfile.DevfileImpl;
+import org.eclipse.che.api.workspace.server.model.impl.devfile.EndpointImpl;
+import org.eclipse.che.api.workspace.server.model.impl.devfile.EntrypointImpl;
+import org.eclipse.che.api.workspace.server.model.impl.devfile.EnvImpl;
+import org.eclipse.che.api.workspace.server.model.impl.devfile.ProjectImpl;
+import org.eclipse.che.api.workspace.server.model.impl.devfile.SourceImpl;
 import org.eclipse.che.api.workspace.server.model.impl.stack.StackImpl;
 import org.eclipse.che.api.workspace.server.spi.StackDao;
 import org.eclipse.che.api.workspace.server.spi.WorkspaceDao;
@@ -57,14 +65,24 @@ public class WorkspaceTckModule extends TckModule {
                 WorkspaceConfigImpl.class,
                 ProjectConfigImpl.class,
                 EnvironmentImpl.class,
-                EnvironmentRecipeImpl.class,
-                ExtendedMachineImpl.class,
+                RecipeImpl.class,
+                MachineConfigImpl.class,
                 SourceStorageImpl.class,
-                ServerConf2Impl.class,
+                ServerConfigImpl.class,
                 StackImpl.class,
                 CommandImpl.class,
-                SnapshotImpl.class,
-                RecipeImpl.class)
+                RecipeImpl.class,
+                VolumeImpl.class,
+                ActionImpl.class,
+                org.eclipse.che.api.workspace.server.model.impl.devfile.CommandImpl.class,
+                ComponentImpl.class,
+                DevfileImpl.class,
+                EndpointImpl.class,
+                EntrypointImpl.class,
+                EnvImpl.class,
+                ProjectImpl.class,
+                SourceImpl.class,
+                org.eclipse.che.api.workspace.server.model.impl.devfile.VolumeImpl.class)
             .addEntityClass(
                 "org.eclipse.che.api.workspace.server.model.impl.ProjectConfigImpl$Attribute")
             .setExceptionHandler(H2ExceptionHandler.class)
@@ -92,7 +110,9 @@ public class WorkspaceTckModule extends TckModule {
     public void createAll(Collection<? extends WorkspaceImpl> entities)
         throws TckRepositoryException {
       for (WorkspaceImpl entity : entities) {
-        entity.getConfig().getProjects().forEach(ProjectConfigImpl::prePersistAttributes);
+        if (entity.getConfig() != null) {
+          entity.getConfig().getProjects().forEach(ProjectConfigImpl::prePersistAttributes);
+        }
       }
       super.createAll(entities);
     }

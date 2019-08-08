@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,7 +14,7 @@ package org.eclipse.che.api.core.model.workspace;
 /**
  * Defines the contract between workspace and its active environment.
  *
- * <p>Workspace is rather part of the {@link Workspace} than {@link WorkspaceRuntime} or {@link
+ * <p>Workspace is rather part of the {@link Workspace} than {@link Runtime} or {@link
  * WorkspaceConfig}, as it shows the state of <b>certain</b> user's workspace and exists
  * <b>earlier</b> than runtime workspace instance e.g. UsersWorkspace may be considered as
  * 'STARTING' before it becomes runtime('RUNNING').
@@ -47,18 +48,6 @@ public enum WorkspaceStatus {
    * </pre>
    */
   RUNNING,
-
-  /**
-   * Workspace is in SNAPSHOTTING status if and only if the workspace is currently creating
-   * snapshots of it's machines.
-   *
-   * <p>Workspace is in SNAPSHOTTING status after it was {@link #RUNNING}. The status map:
-   *
-   * <pre>
-   *     RUNNING -> <b>SNAPSHOTTING</b> -> RUNNING (normal behaviour/error while snapshotting)
-   * </pre>
-   */
-  SNAPSHOTTING,
 
   /**
    * Workspace considered as stopping if and only if its active environment is shutting down.

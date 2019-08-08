@@ -1,21 +1,21 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
 
-import {CheWorkspace} from '../../../components/api/che-workspace.factory';
 import {NamespaceSelectorSvc} from './namespace-selector/namespace-selector.service';
-import {StackSelectorSvc} from './stack-selector/stack-selector.service';
 import {ProjectSourceSelectorService} from './project-source-selector/project-source-selector.service';
 import {CheNotification} from '../../../components/notification/che-notification.factory';
 import {ConfirmDialogService} from '../../../components/service/confirm-dialog/confirm-dialog.service';
+import {CheWorkspace} from '../../../components/api/workspace/che-workspace.factory';
 
 /**
  * This class is handling the service for workspace creation.
@@ -23,6 +23,9 @@ import {ConfirmDialogService} from '../../../components/service/confirm-dialog/c
  * @author Oleksii Kurinnyi
  */
 export class CreateWorkspaceSvc {
+
+  static $inject = ['$location', '$log', '$q', 'cheWorkspace', 'namespaceSelectorSvc', 'projectSourceSelectorService', 'cheNotification', 'confirmDialogService', '$document'];
+
   /**
    * Location service.
    */
@@ -48,10 +51,6 @@ export class CreateWorkspaceSvc {
    */
   private projectSourceSelectorService: ProjectSourceSelectorService;
   /**
-   * Stack selector service.
-   */
-  private stackSelectorSvc: StackSelectorSvc;
-  /**
    * The list of workspaces by namespace.
    */
   private workspacesByNamespace: {
@@ -65,21 +64,24 @@ export class CreateWorkspaceSvc {
    * Confirmation dialog service.
    */
   private confirmDialogService: ConfirmDialogService;
+  /**
+   * Document service.
+   */
+  private $document: ng.IDocumentService;
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($location: ng.ILocationService, $log: ng.ILogService, $q: ng.IQService, cheWorkspace: CheWorkspace, namespaceSelectorSvc: NamespaceSelectorSvc, stackSelectorSvc: StackSelectorSvc, projectSourceSelectorService: ProjectSourceSelectorService, cheNotification: CheNotification, confirmDialogService: ConfirmDialogService) {
+  constructor($location: ng.ILocationService, $log: ng.ILogService, $q: ng.IQService, cheWorkspace: CheWorkspace, namespaceSelectorSvc: NamespaceSelectorSvc, projectSourceSelectorService: ProjectSourceSelectorService, cheNotification: CheNotification, confirmDialogService: ConfirmDialogService, $document: ng.IDocumentService) {
     this.$location = $location;
     this.$log = $log;
     this.$q = $q;
     this.cheWorkspace = cheWorkspace;
     this.namespaceSelectorSvc = namespaceSelectorSvc;
-    this.stackSelectorSvc = stackSelectorSvc;
     this.projectSourceSelectorService = projectSourceSelectorService;
     this.cheNotification = cheNotification;
     this.confirmDialogService = confirmDialogService;
+    this.$document = $document;
 
     this.workspacesByNamespace = {};
   }
@@ -148,35 +150,77 @@ export class CreateWorkspaceSvc {
     return defer.promise;
   }
 
-  /**
-   * Creates a workspace from config.
-   *
-   * @param {che.IWorkspaceConfig} workspaceConfig the config of workspace which will be created
-   * @return {IPromise<any>}
-   */
-  createWorkspace(workspaceConfig: che.IWorkspaceConfig, attributes?: any): ng.IPromise<any> {
+  createWorkspaceFromConfig(workspaceConfig: che.IWorkspaceConfig, attributes: any): ng.IPromise<che.IWorkspace> {
     const namespaceId = this.namespaceSelectorSvc.getNamespaceId(),
           projectTemplates = this.projectSourceSelectorService.getProjectTemplates();
-    workspaceConfig.projects = projectTemplates;
+
     return this.checkEditingProgress().then(() => {
       workspaceConfig.projects = projectTemplates;
+      this.addProjectCommands({config: workspaceConfig}, projectTemplates);
       return this.cheWorkspace.createWorkspaceFromConfig(namespaceId, workspaceConfig, attributes).then((workspace: che.IWorkspace) => {
+        return this.cheWorkspace.fetchWorkspaces().then(() => this.cheWorkspace.getWorkspaceById(workspace.id));
+      })
+      .then((workspace: che.IWorkspace) => {
+        this.projectSourceSelectorService.clearTemplatesList();
+        const workspaces = this.cheWorkspace.getWorkspaces();
+        if (workspaces.findIndex((_workspace: che.IWorkspace) => {
+            return _workspace.id === workspace.id;
+          }) === -1) {
+          workspaces.push(workspace);
+        }
+        this.cheWorkspace.startUpdateWorkspaceStatus(workspace.id);
 
-        return this.cheWorkspace.startWorkspace(workspace.id, workspace.config.defaultEnv).then(() => {
-          this.redirectToIde(namespaceId, workspace);
-          this.projectSourceSelectorService.clearAllSources();
+        return workspace;
+      }, (error: any) => {
+        let errorMessage = 'Creation workspace failed.';
+        if (error && error.data && error.data.message) {
+          errorMessage = error.data.message;
+        }
+        this.cheNotification.showError(errorMessage);
 
-          this.cheWorkspace.getWorkspacesById().set(workspace.id, workspace);
-          this.cheWorkspace.startUpdateWorkspaceStatus(workspace.id);
-          return this.cheWorkspace.fetchStatusChange(workspace.id, 'RUNNING');
-        }).then(() => {
-          return this.cheWorkspace.fetchWorkspaceDetails(workspace.id);
-        }).then(() => {
-          return this.addProjectCommands(workspace.id, projectTemplates);
-        }).then(() => {
-          let IDE = this.getIDE();
-          IDE.CommandManager.refresh();
-        });
+        return this.$q.reject(error);
+      });
+    });
+  }
+
+  createWorkspaceFromDevfile(sourceDevfile: che.IWorkspaceDevfile, attributes: any): ng.IPromise<che.IWorkspace> {
+    const namespaceId = this.namespaceSelectorSvc.getNamespaceId(),
+          projectTemplates = this.projectSourceSelectorService.getProjectTemplates();
+
+    let projects = [];
+    let noProjectsFromDevfile = true;
+    projectTemplates.forEach((template: che.IProjectTemplate) => {
+      sourceDevfile.projects.forEach((project) => {
+        if (project.name === template.name) {
+          noProjectsFromDevfile = false;
+        }
+      });
+
+      projects.push(template);
+    });     
+    
+    return this.checkEditingProgress().then(() => {
+      sourceDevfile.projects = projects;
+
+      // If no projects defined in devfile were added - remove the commands from devfile as well:
+      if (noProjectsFromDevfile) {
+        sourceDevfile.commands = [];
+      }
+      
+      return this.cheWorkspace.createWorkspaceFromDevfile(namespaceId, sourceDevfile, attributes).then((workspace: che.IWorkspace) => {
+        return this.cheWorkspace.fetchWorkspaces().then(() => this.cheWorkspace.getWorkspaceById(workspace.id));
+      })
+      .then((workspace: che.IWorkspace) => {
+        this.projectSourceSelectorService.clearTemplatesList();
+        const workspaces = this.cheWorkspace.getWorkspaces();
+        if (workspaces.findIndex((_workspace: che.IWorkspace) => {
+            return _workspace.id === workspace.id;
+          }) === -1) {
+          workspaces.push(workspace);
+        }
+        this.cheWorkspace.startUpdateWorkspaceStatus(workspace.id);
+
+        return workspace;
       }, (error: any) => {
         let errorMessage = 'Creation workspace failed.';
         if (error && error.data && error.data.message) {
@@ -208,110 +252,47 @@ export class CreateWorkspaceSvc {
   /**
    * Redirects to IDE with specified workspace.
    *
-   * @param {string} namespaceId the namespace ID
    * @param {che.IWorkspace} workspace the workspace to open in IDE
    */
-  redirectToIde(namespaceId: string, workspace: che.IWorkspace): void {
-    const path = `/ide/${namespaceId}/${workspace.config.name}`;
+  redirectToIDE(workspace: che.IWorkspace): void {
+    let name = this.cheWorkspace.getWorkspaceDataManager().getName(workspace);
+    const path = `/ide/${workspace.namespace}/${name}`;
     this.$location.path(path);
-    this.$location.search({'init': 'true'});
   }
 
   /**
-   * Creates bunch of projects.
+   * Redirects to the details page of the workspace.
    *
-   * @param {string} workspaceId the workspace ID
-   * @param {Array<che.IProjectTemplate>} projectTemplates the list of project templates to create
-   * @return {IPromise<any>}
+   * @param {che.IWorkspace} workspace the workspace to open in IDE
    */
-  createProjects(workspaceId: string, projectTemplates: Array<che.IProjectTemplate>): ng.IPromise<any> {
-    if (projectTemplates.length === 0) {
-      return this.$q.reject();
-    }
-
-    const workspaceAgent = this.cheWorkspace.getWorkspaceAgent(workspaceId);
-    return workspaceAgent.getProject().createProjects(projectTemplates);
+  redirectToDetails(workspace: che.IWorkspace): void {
+    let name = this.cheWorkspace.getWorkspaceDataManager().getName(workspace);
+    const path = `/workspace/${workspace.namespace}/${name}`;
+    this.$location.path(path);
   }
 
   /**
-   * Adds commands from the bunch of projects in row.
-   * Returns resolved promise if all commands are aded properly, otherwise returns rejected promise with list of names of failed projects.
+   * Adds commands from the bunch of project templates to provided workspace.
    *
-   * @param {string} workspaceId the workspace ID
+   * @param {che.IWorkspace} workspace
    * @param {Array<che.IProjectTemplate>} projectTemplates the list of project templates
-   * @return {IPromise<any>}
    */
-  addProjectCommands(workspaceId: string, projectTemplates: Array<che.IProjectTemplate>): ng.IPromise<any> {
-    const defer = this.$q.defer();
-    defer.resolve();
-    let accumulatorPromise = defer.promise;
-
-    const failedProjects = [];
-
-    accumulatorPromise = projectTemplates.reduce((_accumulatorPromise: ng.IPromise<any>, project: che.IProjectTemplate) => {
-      return _accumulatorPromise.then(() => {
-        return this.addCommands(workspaceId, project.name, project.commands).catch(() => {
-          // adding commands errors, ignore them here
-          return this.$q.when();
-        }).catch((error: any) => {
-          failedProjects.push(project.name);
-          if (error && error.message) {
-            this.$log.error(`Importing of project ${project.name} failed with error: ${error.message}`);
-          }
-        });
+  addProjectCommands(workspace: che.IWorkspace, projectTemplates: Array<che.IProjectTemplate>): void {
+    projectTemplates.forEach((template: che.IProjectTemplate) => {
+      let projectName = template.name;
+      template.commands.forEach((command: any) => {
+        command.name = projectName + ':' + command.name;
+        this.cheWorkspace.getWorkspaceDataManager().addCommand(workspace, command);
       });
-    }, accumulatorPromise);
-
-    return accumulatorPromise.then(() => {
-      if (failedProjects.length) {
-        return this.$q.reject(failedProjects);
-      }
-      return this.$q.when();
     });
   }
 
   /**
-   * Adds bunch of commands for project in row.
-   * Returns resolved promise if all commands are imported properly, otherwise returns rejected promise with list of names of failed commands.
-   *
-   * @param {string} workspaceId the workspace ID
-   * @param {string} projectName the name of project
-   * @param {any[]} projectCommands the list of commands
-   * @return {IPromise<any>}
+   * Returns name of the pointed workspace.
+   * 
+   * @param workspace workspace
    */
-  addCommands(workspaceId: string, projectName: string, projectCommands: any[]): ng.IPromise<any> {
-    const defer = this.$q.defer();
-    defer.resolve();
-    let accumulatorPromise = defer.promise;
-
-    if (projectCommands.length === 0) {
-      return accumulatorPromise;
-    }
-
-    const failedCommands = [];
-
-    accumulatorPromise = projectCommands.reduce((_accumulatorPromise: ng.IPromise<any>, command: any) => {
-      command.name = projectName + ':' + command.name;
-      return _accumulatorPromise.then(() => {
-        return this.cheWorkspace.addCommand(workspaceId, command);
-      }, (error: any) => {
-        failedCommands.push(command.name);
-        if (error && error.message) {
-          this.$log.error(`Adding of command "${command.name}" failed for project "${projectName}" with error: ${error}`);
-        }
-      });
-    }, accumulatorPromise);
-
-    return accumulatorPromise.then(() => {
-      if (failedCommands.length) {
-        return this.$q.reject(failedCommands);
-      }
-      return this.$q.when();
-    });
+  getWorkspaceName(workspace: che.IWorkspace): string {
+    return this.cheWorkspace.getWorkspaceDataManager().getName(workspace);
   }
-
-  private getIDE(): any {
-    return (window.frames[0] as any).IDE;
-  }
-
 }

@@ -1,17 +1,21 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.local.filters;
 
+import io.opentracing.Span;
+import io.opentracing.Tracer;
 import java.io.IOException;
 import java.security.Principal;
+import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -25,6 +29,7 @@ import javax.servlet.http.HttpSession;
 import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.subject.Subject;
 import org.eclipse.che.commons.subject.SubjectImpl;
+import org.eclipse.che.commons.tracing.TracingTags;
 
 /**
  * Fills environment context with information about current subject.
@@ -33,6 +38,8 @@ import org.eclipse.che.commons.subject.SubjectImpl;
  */
 @Singleton
 public class EnvironmentInitializationFilter implements Filter {
+
+  @Inject Tracer tracer;
 
   @Override
   public void init(FilterConfig filterConfig) throws ServletException {}
@@ -50,6 +57,10 @@ public class EnvironmentInitializationFilter implements Filter {
 
     try {
       environmentContext.setSubject(subject);
+      Span activeSpan = tracer.activeSpan();
+      if (activeSpan != null) {
+        TracingTags.USER_ID.set(tracer.activeSpan(), subject.getUserId());
+      }
       filterChain.doFilter(addUserInRequest(httpRequest, subject), response);
     } finally {
       EnvironmentContext.reset();

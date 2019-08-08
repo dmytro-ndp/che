@@ -1,10 +1,11 @@
 <!--
 
-    Copyright (c) 2015-2017 Red Hat, Inc.
-    All rights reserved. This program and the accompanying materials
-    are made available under the terms of the Eclipse Public License v1.0
-    which accompanies this distribution, and is available at
-    http://www.eclipse.org/legal/epl-v10.html
+    Copyright (c) 2015-2018 Red Hat, Inc.
+    This program and the accompanying materials are made
+    available under the terms of the Eclipse Public License 2.0
+    which is available at https://www.eclipse.org/legal/epl-2.0/
+
+    SPDX-License-Identifier: EPL-2.0
 
     Contributors:
       Red Hat, Inc. - initial API and implementation
@@ -18,7 +19,8 @@
   <div class="create-factory" ng-hide="createFactoryCtrl.isLoading">
     <ng-form name="factoryNameForm">
       <!-- Name -->
-      <che-input-box che-label-name="Name"
+      <che-input-box ng-init="createFactoryCtrl.setForm(factoryNameForm)"
+                     che-label-name="Name"
                      che-form="factoryNameForm"
                      che-name="name"
                      che-place-holder="Name of the factory"
@@ -27,10 +29,13 @@
                      ng-trim
                      ng-minlength="3"
                      ng-maxlength="20"
-                     ng-pattern="/^[ A-Za-z0-9_\-\.]+$/">
+                     ng-pattern="/^[ A-Za-z0-9_\-\.]+$/"
+                     id="new-factory-name-input"
+                     unique-factory-name="">
         <div ng-message="pattern">Factory name may contain digits, latin letters, spaces, _ , . , - and should start only with digits, latin letters or underscores</div>
         <div ng-message="minlength">The name has to be more than 3 characters long.</div>
         <div ng-message="maxlength">The name has to be less than 20 characters long.</div>
+        <div ng-message="uniqueFactoryName">This factory name is already used.</div>
       </che-input-box>
     </ng-form>
       <!--Factory source-->
@@ -38,11 +43,11 @@
                            class="che-label-container-last">
         <md-tabs md-dynamic-height="true" md-stretch-tabs="auto" md-center-tabs="false" md-selected="selectedIndex"
                  md-border-bottom="true"
+                 md-no-ink-bar
                  class="factory-select-source-details">
           <md-tab md-on-select="createFactoryCtrl.clearFactoryContent()">
             <md-tab-label>
-              <md-icon md-font-icon="fa fa-server" class="che-tab-label-icon"></md-icon>
-              <span class="che-tab-label-title">Workspace</span>
+              <span class="che-tab-label-title" id="new-factory-workspace-tab">Workspace</span>
             </md-tab-label>
             <md-tab-body>
               <cdvy-factory-from-workspace cdvy-factory-content="createFactoryCtrl.factoryContent"
@@ -52,8 +57,7 @@
           </md-tab>
           <md-tab md-on-select="createFactoryCtrl.clearFactoryContent()">
             <md-tab-label>
-              <md-icon md-font-icon="fa-git" class="fa che-tab-label-icon"></md-icon>
-              <span class="che-tab-label-title">Git</span>
+              <span class="che-tab-label-title" id="new-factory-git-tab">Git</span>
             </md-tab-label>
             <md-tab-body>
               <div layout="row" layout-align="start center" class="create-factory-git-content">
@@ -64,8 +68,7 @@
           </md-tab>
           <md-tab md-on-select="createFactoryCtrl.clearFactoryContent()">
             <md-tab-label>
-              <md-icon md-font-icon="fa fa-download" class="che-tab-label-icon"></md-icon>
-              <span class="che-tab-label-title">Config</span>
+              <span class="che-tab-label-title" id="new-factory-config-tab">Config</span>
             </md-tab-label>
             <md-tab-body>
               <div layout-fill layout="row" layout-align="start center">
@@ -78,8 +81,7 @@
           <md-tab md-on-select="createFactoryCtrl.clearFactoryContent(); templateSelected = true;"
                   md-on-deselect="templateSelected = false;">
             <md-tab-label>
-              <md-icon md-font-icon="fa fa-magic" class="che-tab-label-icon"></md-icon>
-              <span class="che-tab-label-title">Template</span>
+              <span class="che-tab-label-title" id="new-factory-template-tab">Template</span>
             </md-tab-label>
             <md-tab-body>
               <div layout-fill layout="row" layout-align="start center" ng-if="templateSelected">

@@ -1,18 +1,29 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
 
+import {IParser} from './parser';
+
+export interface IComposeServiceRecipe {
+  image: string;
+  environment: any;
+  depends_on: any[];
+  links: any[];
+  [propName: string]: any;
+}
+
 export interface IComposeRecipe {
   services: {
-    [machineName: string]: any
+    [serviceName: string]: IComposeServiceRecipe
   };
 }
 
@@ -21,7 +32,7 @@ export interface IComposeRecipe {
  *
  * @author Oleksii Kurinnyi
  */
-export class ComposeParser {
+export class ComposeParser implements IParser {
 
   /**
    * Parses recipe content
@@ -31,7 +42,11 @@ export class ComposeParser {
    */
   parse(content: string): IComposeRecipe {
     const recipe = jsyaml.load(content);
-    this.validate(recipe);
+    if (recipe && !recipe.services) { // if it is machine recipe
+      this.validate({services: recipe});
+    } else {
+      this.validate(recipe);
+    }
     return recipe;
   }
 
@@ -43,7 +58,7 @@ export class ComposeParser {
    */
 
   dump(recipe: IComposeRecipe): string {
-    return jsyaml.dump(recipe);
+    return jsyaml.dump(recipe, {'indent': 1});
   }
 
   /**

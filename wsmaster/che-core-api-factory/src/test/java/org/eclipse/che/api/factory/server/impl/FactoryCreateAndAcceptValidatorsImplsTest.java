@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.factory.server.impl;
 
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
@@ -55,14 +57,14 @@ public class FactoryCreateAndAcceptValidatorsImplsTest {
   }
 
   @Test
-  public void testValidateOnCreate() throws ApiException {
+  public void testValidateOnCreate() throws Exception {
     FactoryCreateValidatorImpl spy = spy(createValidator);
     doNothing().when(spy).validateProjects(any(FactoryDto.class));
     doNothing().when(spy).validateCurrentTimeAfterSinceUntil(any(FactoryDto.class));
     doNothing().when(spy).validateProjectActions(any(FactoryDto.class));
-    doNothing().when(workspaceConfigValidator).validateConfig(any(WorkspaceConfig.class));
+    doNothing().when(workspaceConfigValidator).validateConfig(nullable(WorkspaceConfig.class));
 
-    //main invoke
+    // main invoke
     spy.validateOnCreate(factory);
 
     verify(spy).validateProjects(any(FactoryDto.class));
@@ -78,7 +80,7 @@ public class FactoryCreateAndAcceptValidatorsImplsTest {
     doNothing().when(spy).validateCurrentTimeBetweenSinceUntil(any(FactoryDto.class));
     doNothing().when(spy).validateProjectActions(any(FactoryDto.class));
 
-    //main invoke
+    // main invoke
     spy.validateOnAccept(factory);
 
     verify(spy).validateCurrentTimeBetweenSinceUntil(any(FactoryDto.class));

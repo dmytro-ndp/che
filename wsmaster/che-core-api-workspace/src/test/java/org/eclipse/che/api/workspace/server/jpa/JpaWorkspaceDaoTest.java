@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,7 +12,8 @@
 package org.eclipse.che.api.workspace.server.jpa;
 
 import static java.util.Collections.singletonList;
-import static org.eclipse.che.api.workspace.server.spi.tck.WorkspaceDaoTest.createWorkspace;
+import static org.eclipse.che.api.workspace.server.spi.tck.WorkspaceDaoTest.createWorkspaceFromConfig;
+import static org.eclipse.che.api.workspace.server.spi.tck.WorkspaceDaoTest.createWorkspaceFromDevfile;
 import static org.testng.Assert.assertEquals;
 
 import com.google.inject.Guice;
@@ -23,8 +25,7 @@ import org.eclipse.che.account.spi.AccountImpl;
 import org.eclipse.che.api.workspace.server.model.impl.ProjectConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
-import org.eclipse.che.commons.test.db.H2JpaCleaner;
-import org.eclipse.che.commons.test.tck.JpaCleaner;
+import org.eclipse.che.commons.test.tck.TckResourcesCleaner;
 import org.eclipse.che.core.db.jpa.DuplicateKeyException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -37,16 +38,16 @@ import org.testng.annotations.Test;
  */
 public class JpaWorkspaceDaoTest {
 
+  private TckResourcesCleaner tckResourcesCleaner;
   private EntityManager manager;
   private JpaWorkspaceDao workspaceDao;
-  private JpaCleaner cleaner;
 
   @BeforeMethod
   private void setUpManager() {
     final Injector injector = Guice.createInjector(new WorkspaceTckModule());
     manager = injector.getInstance(EntityManager.class);
     workspaceDao = injector.getInstance(JpaWorkspaceDao.class);
-    cleaner = injector.getInstance(H2JpaCleaner.class);
+    tckResourcesCleaner = injector.getInstance(TckResourcesCleaner.class);
   }
 
   @AfterMethod
@@ -59,13 +60,13 @@ public class JpaWorkspaceDaoTest {
       manager.remove(entity);
     }
     manager.getTransaction().commit();
-    cleaner.clean();
+    tckResourcesCleaner.clean();
   }
 
   @Test
   public void shouldCascadeRemoveObjectsWhenTheyRemovedFromEntity() {
     final AccountImpl account = new AccountImpl("accountId", "namespace", "test");
-    final WorkspaceImpl workspace = createWorkspace("id", account, "name");
+    final WorkspaceImpl workspace = createWorkspaceFromConfig("id", account, "name");
 
     // Persist the account
     manager.getTransaction().begin();
@@ -99,8 +100,8 @@ public class JpaWorkspaceDaoTest {
   @Test(expectedExceptions = DuplicateKeyException.class)
   public void shouldSynchronizeWorkspaceNameWithConfigNameWhenConfigIsUpdated() throws Exception {
     final AccountImpl account = new AccountImpl("accountId", "namespace", "test");
-    final WorkspaceImpl workspace1 = createWorkspace("id", account, "name1");
-    final WorkspaceImpl workspace2 = createWorkspace("id2", account, "name2");
+    final WorkspaceImpl workspace1 = createWorkspaceFromConfig("id", account, "name1");
+    final WorkspaceImpl workspace2 = createWorkspaceFromConfig("id2", account, "name2");
 
     // persist prepared data
     manager.getTransaction().begin();
@@ -110,7 +111,27 @@ public class JpaWorkspaceDaoTest {
     manager.getTransaction().commit();
 
     // make conflict update
-    workspace2.getConfig().setName(workspace1.getConfig().getName());
+    workspace2.getConfig().setName(workspace1.getName());
+    manager.getTransaction().begin();
+    manager.merge(workspace2);
+    manager.getTransaction().commit();
+  }
+
+  @Test(expectedExceptions = DuplicateKeyException.class)
+  public void shouldSynchronizeWorkspaceNameWithDevfileNameWhenDevfileIsUpdated() throws Exception {
+    final AccountImpl account = new AccountImpl("accountId", "namespace", "test");
+    final WorkspaceImpl workspace1 = createWorkspaceFromDevfile("id", account, "name1");
+    final WorkspaceImpl workspace2 = createWorkspaceFromDevfile("id2", account, "name2");
+
+    // persist prepared data
+    manager.getTransaction().begin();
+    manager.persist(account);
+    manager.persist(workspace1);
+    manager.persist(workspace2);
+    manager.getTransaction().commit();
+
+    // make conflict update
+    workspace2.getDevfile().setName(workspace1.getDevfile().getName());
     manager.getTransaction().begin();
     manager.merge(workspace2);
     manager.getTransaction().commit();
@@ -119,7 +140,7 @@ public class JpaWorkspaceDaoTest {
   @Test
   public void shouldSyncDbAttributesWhileUpdatingWorkspace() throws Exception {
     final AccountImpl account = new AccountImpl("accountId", "namespace", "test");
-    final WorkspaceImpl workspace = createWorkspace("id", account, "name");
+    final WorkspaceImpl workspace = createWorkspaceFromConfig("id", account, "name");
     if (workspace.getConfig() != null) {
       workspace.getConfig().getProjects().forEach(ProjectConfigImpl::prePersistAttributes);
     }
@@ -143,6 +164,60 @@ public class JpaWorkspaceDaoTest {
 
     // check it's okay
     assertEquals(result.getConfig().getProjects().get(0).getAttributes().size(), 3);
+  }
+
+  @Test(expectedExceptions = IllegalStateException.class)
+  public void shouldNotSaveDevfileWithoutMetadata() {
+    final AccountImpl account = new AccountImpl("accountId", "namespace", "test");
+    final WorkspaceImpl workspace = createWorkspaceFromDevfile("id", account, "name");
+    workspace.getDevfile().setMetadata(null);
+
+    try {
+      // persist the workspace
+      manager.getTransaction().begin();
+      manager.persist(account);
+      manager.persist(workspace);
+      manager.getTransaction().commit();
+    } finally {
+      manager.getTransaction().rollback();
+      manager.clear();
+    }
+  }
+
+  @Test(expectedExceptions = IllegalStateException.class)
+  public void shouldNotSaveDevfileWithoutMetadataName() {
+    final AccountImpl account = new AccountImpl("accountId", "namespace", "test");
+    final WorkspaceImpl workspace = createWorkspaceFromDevfile("id", account, "name");
+    workspace.getDevfile().getMetadata().setName(null);
+
+    try {
+      // persist the workspace
+      manager.getTransaction().begin();
+      manager.persist(account);
+      manager.persist(workspace);
+      manager.getTransaction().commit();
+    } finally {
+      manager.getTransaction().rollback();
+      manager.clear();
+    }
+  }
+
+  @Test(expectedExceptions = IllegalStateException.class)
+  public void shouldNotSaveDevfileWithEmptyMetadataName() {
+    final AccountImpl account = new AccountImpl("accountId", "namespace", "test");
+    final WorkspaceImpl workspace = createWorkspaceFromDevfile("id", account, "name");
+    workspace.getDevfile().getMetadata().setName("");
+
+    try {
+      // persist the workspace
+      manager.getTransaction().begin();
+      manager.persist(account);
+      manager.persist(workspace);
+      manager.getTransaction().commit();
+    } finally {
+      manager.getTransaction().rollback();
+      manager.clear();
+    }
   }
 
   private long asLong(String query) {

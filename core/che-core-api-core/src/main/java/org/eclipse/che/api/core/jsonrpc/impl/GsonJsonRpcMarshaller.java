@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,6 +13,7 @@ package org.eclipse.che.api.core.jsonrpc.impl;
 
 import static org.eclipse.che.api.core.jsonrpc.commons.JsonRpcUtils.cast;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
@@ -30,10 +32,12 @@ import org.eclipse.che.dto.server.DtoFactory;
 
 public class GsonJsonRpcMarshaller implements JsonRpcMarshaller {
   private final JsonParser jsonParser;
+  private final Gson gson;
 
   @Inject
-  public GsonJsonRpcMarshaller(JsonParser jsonParser) {
+  public GsonJsonRpcMarshaller(JsonParser jsonParser, Gson gson) {
     this.jsonParser = jsonParser;
+    this.gson = gson;
   }
 
   @Override
@@ -164,7 +168,7 @@ public class GsonJsonRpcMarshaller implements JsonRpcMarshaller {
     try {
       return jsonParser.parse(DtoFactory.getInstance().toJson(param));
     } catch (IllegalArgumentException e) {
-      return jsonParser.parse(param.toString());
+      return gson.toJsonTree(param);
     }
   }
 }

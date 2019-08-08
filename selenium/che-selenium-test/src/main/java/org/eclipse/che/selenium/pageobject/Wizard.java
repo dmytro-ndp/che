@@ -1,16 +1,19 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.pageobject;
 
+import static java.util.Collections.singletonList;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ELEMENT_TIMEOUT_SEC;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOADER_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
 
@@ -18,6 +21,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.List;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -32,11 +36,16 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 public class Wizard {
 
   private final SeleniumWebDriver seleniumWebDriver;
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
   private final Loader loader;
 
   @Inject
-  public Wizard(SeleniumWebDriver seleniumWebDriver, Loader loader) {
+  public Wizard(
+      SeleniumWebDriver seleniumWebDriver,
+      Loader loader,
+      SeleniumWebDriverHelper seleniumWebDriverHelper) {
     this.seleniumWebDriver = seleniumWebDriver;
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
     this.loader = loader;
     PageFactory.initElements(seleniumWebDriver, this);
   }
@@ -53,7 +62,7 @@ public class Wizard {
     String ARTIFACT_ID_INPUT = "//div[text() = 'Artifact ID:']//following::input";
     String VERSION_INPUT = "//div[text() = 'Version:']//following::input";
     String PARENT_DIRECTORY_INPUT =
-        "//div[@id='gwt-debug-projectWizard-window']//div[text()='Parent:']/following-sibling::div";
+        "//table[@id='gwt-debug-projectWizard-window']//div[text()='Parent:']/following-sibling::div";
     String SELECT_PACKAGING_DROPDOWN = "//div[@id='gwt-debug-mavenPageView-packagingField']";
     String SELECT_PACKAGING_DROPDOWN_BLOCK =
         "//div[@id='gwt-debug-mavenPageView-packagingField']//span";
@@ -61,7 +70,7 @@ public class Wizard {
         "//div[text()='%s']/following-sibling::button[text()='Browse']";
     String FOLDER_PATH_FIELD_XPATH = "//div[text()='%s']/following-sibling::input";
     String SELECT_PATH_FOR_PARENT_BTN = "//div[text()='Parent:']/parent::div/button";
-    String CLOSE_ICON_CSS = "div#gwt-debug-projectWizard-window svg[width='8px'][height='8px']";
+    String CLOSE_ICON_CSS = "table#gwt-debug-projectWizard-window svg[width='8px'][height='8px']";
     String ARCHETYPE_CK_BOX_ID = "gwt-debug-mavenPageView-generateFromArchetype-label";
     String ARCHETYPE_DROP_DAWN_ID = "gwt-debug-mavenPageView-archetypeField";
   }
@@ -75,7 +84,12 @@ public class Wizard {
 
   public interface SamplesName {
     String WEB_JAVA_SPRING = "web-java-spring";
-    String ASP_DOT_NET_WEB_SIMPLE = "aspnet-web-simple";
+    String CONSOLE_JAVA_SIMPLE = "console-java-simple";
+    String ASP_DOT_NET_WEB_SIMPLE = "dotnet-web-simple";
+    String WEB_JAVA_PETCLINIC = "web-java-petclinic";
+    String CONSOLE_CPP_SIMPLE = "console-cpp-simple";
+    String CONSOLE_PYTHON3_SIMPLE = "console-python3.5-simple";
+    String NODEJS_HELLO_WORLD = "nodejs-hello-world";
   }
 
   public interface TypeFolder {
@@ -259,7 +273,7 @@ public class Wizard {
 
   /** wait wizard form is closed */
   public void waitCreateProjectWizardFormIsClosed() {
-    new WebDriverWait(seleniumWebDriver, 20)
+    new WebDriverWait(seleniumWebDriver, LOADER_TIMEOUT_SEC)
         .until(
             ExpectedConditions.invisibilityOfElementLocated(By.id(Locators.CREATE_PROJECT_WIZARD)));
   }
@@ -350,8 +364,7 @@ public class Wizard {
   }
 
   public void waitCloseProjectConfigForm() {
-    new WebDriverWait(seleniumWebDriver, 30)
-        .until(ExpectedConditions.invisibilityOfElementLocated(By.id(Locators.MAIN_FORM_ID)));
+    seleniumWebDriverHelper.waitInvisibility(By.id(Locators.MAIN_FORM_ID), LOADER_TIMEOUT_SEC);
   }
 
   /** wait parent directory name on the 'Project Configuration' form */
@@ -498,6 +511,14 @@ public class Wizard {
   public void waitArcheTypeDropdawn() {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
         .until(ExpectedConditions.visibilityOf(archetypeDropDown));
+  }
+
+  /** wait for the archetype section in the import widget to be invisible */
+  public void waitInvisibilityOfAchetypeSection() {
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(ExpectedConditions.invisibilityOfAllElements(singletonList(fromArchetypeChkBox)));
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(ExpectedConditions.invisibilityOfAllElements(singletonList(archetypeDropDown)));
   }
 
   public void selectArcheTypeFromList(Archetypes type) {

@@ -1,5 +1,5 @@
 .che-list-item
-  display inline-block
+  display block
   outline none
   width 100%
 
@@ -30,13 +30,12 @@
 .che-list-item-row *
   outline none
 
-.che-list-item-row:not(:hover) .tooltip
-  display none !important
-
 .che-list-item-details
   line-height inherit
   font-size 12px
-  cursor pointer
+
+  &[ng-click], [ng-click]
+    cursor pointer
 
   span:not(.tooltip)
     max-width 100%

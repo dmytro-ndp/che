@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -169,18 +170,6 @@ public class ServerDtoTest {
     Assert.assertEquals(dto.getStuff(), stuffValue);
     Object objectsValue = gson.fromJson(createElementListTestValueForAny(), Object.class);
     Assert.assertEquals(dto.getObjects(), objectsValue);
-  }
-
-  @Test
-  public void testCloneWithNullAny() throws Exception {
-    DtoWithAny dto1 = dtoFactory.createDto(DtoWithAny.class);
-    DtoWithAny dto2 = dtoFactory.clone(dto1);
-    Assert.assertEquals(dto1, dto2);
-    JsonElement json = new JsonParser().parse(dtoFactory.toJson(dto1));
-    JsonObject expJson = new JsonObject();
-    expJson.addProperty("id", 0);
-    expJson.add("objects", new JsonArray());
-    assertEquals(expJson, json);
   }
 
   @Test
@@ -432,19 +421,17 @@ public class ServerDtoTest {
   }
 
   @Test(
-    expectedExceptions = IllegalArgumentException.class,
-    expectedExceptionsMessageRegExp =
-        "Only interfaces can be DTO, but class java.lang.String is not"
-  )
+      expectedExceptions = IllegalArgumentException.class,
+      expectedExceptionsMessageRegExp =
+          "Only interfaces can be DTO, but class java.lang.String is not")
   public void shouldThrowExceptionWhenThereIsClassType() {
     DtoFactory.newDto(String.class);
   }
 
   @Test(
-    expectedExceptions = IllegalArgumentException.class,
-    expectedExceptionsMessageRegExp =
-        "interface org.eclipse.che.dto.definitions.DTOHierarchy\\$GrandchildWithoutDto is not a DTO type"
-  )
+      expectedExceptions = IllegalArgumentException.class,
+      expectedExceptionsMessageRegExp =
+          "interface org.eclipse.che.dto.definitions.DTOHierarchy\\$GrandchildWithoutDto is not a DTO type")
   public void shouldThrowExceptionWhenInterfaceIsNotAnnotatedAsDto() {
     DtoFactory.newDto(DTOHierarchy.GrandchildWithoutDto.class);
   }

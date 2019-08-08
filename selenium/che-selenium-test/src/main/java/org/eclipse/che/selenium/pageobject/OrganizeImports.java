@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -26,7 +27,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 @Singleton
 public class OrganizeImports {
   private interface Locators {
-    String ORGANIZE_IMPORTS_DIALOG = "//div[text()='Organize Imports']/ancestor::div[3]";
+    String ORGANIZE_IMPORTS_DIALOG = "//table[@title='Organize Imports']";
     String FINISH_BUTTON = "imports-finish-button";
     String BACK_BUTTON = "imports-back-button";
     String IMPORT_FIELD = "//div[text()='%s']";

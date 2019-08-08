@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,16 +12,9 @@
 'use strict';
 
 import {ListStacksController} from './list-stacks/list-stacks.controller';
-import {StackItemController} from './list-stacks/stack-item/stack-item.controller';
-import {StackItem} from './list-stacks/stack-item/stack-item.directive';
-import {StackController} from './stack-details/stack.controller';
-import {ListComponents} from './stack-details/list-components/list-components.directive';
-import {ListComponentsController} from './stack-details/list-components/list-components.controller';
-import {EditComponentDialogController} from './stack-details/list-components/edit-component-dialog/edit-component-dialog.controller';
-import {SelectTemplateController} from './stack-details/select-template/select-template.controller';
-import {ImportStackController} from './list-stacks/import-stack/import-stack.controller';
-import {ImportStackService} from './stack-details/import-stack.service';
-import {StackValidationService} from './stack-details/stack-validation.service';
+import {StackController, IStackInitData} from './stack-details/stack.controller';
+import {DevfileRegistry, IDevfileMetaData} from '../../components/api/devfile-registry.factory';
+import {CheWorkspace} from '../../components/api/workspace/che-workspace.factory';
 
 /**
  * @ngdoc controller
@@ -32,36 +26,42 @@ export class StacksConfig {
 
   constructor(register: che.IRegisterService) {
     register.controller('ListStacksController', ListStacksController);
-
-    register.controller('StackItemController', StackItemController);
-    register.directive('stackItem', StackItem);
-
-    register.controller('ListComponentsController', ListComponentsController);
-    register.directive('listComponents', ListComponents);
-
     register.controller('StackController', StackController);
-    register.controller('EditComponentDialogController', EditComponentDialogController);
-    register.controller('SelectTemplateController', SelectTemplateController);
-    register.controller('ImportStackController', ImportStackController);
-    register.service('importStackService', ImportStackService);
-    register.service('stackValidationService', StackValidationService);
 
     // config routes
-    register.app.config(($routeProvider: any) => {
+    register.app.config(['$routeProvider', ($routeProvider: any) => {
       $routeProvider.accessWhen('/stacks', {
         title: 'Stacks',
         templateUrl: 'app/stacks/list-stacks/list-stacks.html',
         controller: 'ListStacksController',
         controllerAs: 'listStacksController'
       })
-        .accessWhen('/stack/:stackId', {
+        .accessWhen('/stack/:stackId*', {
           title: (params: any) => {
             return params.stackId;
           },
           templateUrl: 'app/stacks/stack-details/stack.html',
           controller: 'StackController',
-          controllerAs: 'stackController'
+          controllerAs: 'stackController',
+          resolve: {
+            initData: ['$q', '$route', 'cheWorkspace', 'devfileRegistry', ($q: ng.IQService, $route: ng.route.IRouteService, cheWorkspace: CheWorkspace,  devfileRegistry: DevfileRegistry) => {
+              const {stackId} = $route.current.params;
+              const selfLink = devfileRegistry.devfileIdToSelfLink(stackId);
+              const location = cheWorkspace.getWorkspaceSettings().cheWorkspaceDevfileRegistryUrl;
+
+              return devfileRegistry.fetchDevfiles(location).then((devfileMetaDatas: Array<IDevfileMetaData>) => {
+                const devfileMetaData = devfileMetaDatas.find((devfileMetaData: IDevfileMetaData) => devfileMetaData.links.self === selfLink);
+                if (!devfileMetaData) {
+                  return $q.reject();
+                }
+                return devfileRegistry.fetchDevfile(location, selfLink).then(() => {
+                  const devfileContent = devfileRegistry.getDevfile(location, selfLink);
+                  return <IStackInitData>{devfileMetaData, devfileContent};
+                });
+              });
+            }]
+          }
         });
-    });
+    }]);
   }
 }

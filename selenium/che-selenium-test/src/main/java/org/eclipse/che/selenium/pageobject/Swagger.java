@@ -1,16 +1,21 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.pageobject;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ELEMENT_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.MINIMUM_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
 
 import com.google.inject.Inject;
@@ -18,6 +23,7 @@ import com.google.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceDto;
 import org.eclipse.che.commons.json.JsonHelper;
 import org.eclipse.che.commons.json.JsonParseException;
@@ -26,10 +32,15 @@ import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.utils.WaitUtils;
 import org.everrest.core.impl.provider.json.JsonValue;
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.FluentWait;
+import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 /** @author Andrey Chizhikov */
@@ -66,9 +77,13 @@ public class Swagger {
 
   /** expand 'workspace' item */
   private void expandWorkSpaceItem() {
-    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
-        .until(ExpectedConditions.elementToBeClickable(workSpaceLink))
-        .click();
+    Wait fluentWait =
+        new FluentWait(seleniumWebDriver)
+            .withTimeout(ELEMENT_TIMEOUT_SEC, SECONDS)
+            .pollingEvery(MINIMUM_SEC, SECONDS)
+            .ignoring(StaleElementReferenceException.class, NoSuchElementException.class);
+    fluentWait.until((ExpectedCondition<Boolean>) input -> workSpaceLink.isEnabled());
+    workSpaceLink.click();
   }
 
   /** collapse 'workspace' item */
@@ -107,17 +122,35 @@ public class Swagger {
    *
    * @return result search by key
    */
-  public String getWsNameFromWorkspacePage() {
+  public List<String> getWsNamesFromWorkspacePage() {
     expandWorkSpaceItem();
     clickElementByXpath(Locators.GET_WORKSPACES);
     clickTryItOutByXpath(Locators.TRY_IT_OUT);
-    String json =
-        new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
-            .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(Locators.RESPONSE_BODY)))
-            .getText();
-    List<WorkspaceDto> workspaces =
-        DtoFactory.getInstance().createListDtoFromJson(json, WorkspaceDto.class);
-    return workspaces.get(0).getConfig().getName();
+    List<WorkspaceDto> workspaces = new ArrayList<WorkspaceDto>();
+    // Sometimes when we get text from swagger page the JSON may be in rendering state. In this case
+    // we get invalid data.
+    // In this loop we perform 2 attempts with 500 msec. delay for getting correct data after full
+    // rendering page.
+    for (int i = 0; i < 2; i++) {
+      try {
+        workspaces =
+            DtoFactory.getInstance()
+                .createListDtoFromJson(
+                    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+                        .until(
+                            ExpectedConditions.visibilityOfElementLocated(
+                                By.xpath(Locators.RESPONSE_BODY)))
+                        .getText(),
+                    WorkspaceDto.class);
+        break;
+      } catch (RuntimeException ex) {
+        WaitUtils.sleepQuietly(500, MILLISECONDS);
+      }
+    }
+    return workspaces
+        .stream()
+        .map(workspaceDto -> workspaceDto.getConfig().getName())
+        .collect(Collectors.toList());
   }
 
   /**

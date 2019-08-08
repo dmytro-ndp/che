@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -46,11 +47,12 @@ public class WindowsPathEscaper {
     if (path.indexOf(":") == 1) {
       // check and replace only occurrence of ":" after disk label on Windows host (e.g. C:/)
       // but keep other occurrences it can be marker for docker mount volumes
-      // (e.g. /path/dir/from/host:/name/of/dir/in/container                                               )
+      // (e.g. /path/dir/from/host:/name/of/dir/in/container
+      //       )
       esc = path.replaceFirst(":", "").replace('\\', '/');
       esc =
           Character.toLowerCase(esc.charAt(0))
-              + esc.substring(1); //letter of disk mark must be lower case
+              + esc.substring(1); // letter of disk mark must be lower case
     } else {
       esc = path.replace('\\', '/');
     }

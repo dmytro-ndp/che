@@ -1,1139 +1,824 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.workspace.server;
 
-import static java.lang.String.format;
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.eclipse.che.api.workspace.shared.Constants.ERROR_MESSAGE_ATTRIBUTE_NAME;
+import static org.eclipse.che.api.workspace.shared.Constants.NO_ENVIRONMENT_RECIPE_TYPE;
+import static org.eclipse.che.api.workspace.shared.Constants.STOPPED_ABNORMALLY_ATTRIBUTE_NAME;
+import static org.eclipse.che.api.workspace.shared.Constants.STOPPED_ATTRIBUTE_NAME;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.AssertJUnit.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.Futures;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import org.eclipse.che.api.agent.server.AgentRegistry;
-import org.eclipse.che.api.agent.server.impl.AgentSorter;
-import org.eclipse.che.api.agent.server.launcher.AgentLauncherFactory;
-import org.eclipse.che.api.core.ConflictException;
+import org.eclipse.che.account.spi.AccountImpl;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
-import org.eclipse.che.api.core.model.machine.MachineConfig;
-import org.eclipse.che.api.core.model.machine.MachineStatus;
-import org.eclipse.che.api.core.model.workspace.Environment;
-import org.eclipse.che.api.core.model.workspace.ExtendedMachine;
-import org.eclipse.che.api.core.model.workspace.Workspace;
+import org.eclipse.che.api.core.ValidationException;
+import org.eclipse.che.api.core.model.workspace.Runtime;
+import org.eclipse.che.api.core.model.workspace.Warning;
 import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
+import org.eclipse.che.api.core.model.workspace.config.Command;
+import org.eclipse.che.api.core.model.workspace.config.Environment;
+import org.eclipse.che.api.core.model.workspace.runtime.Machine;
+import org.eclipse.che.api.core.model.workspace.runtime.MachineStatus;
+import org.eclipse.che.api.core.model.workspace.runtime.RuntimeIdentity;
 import org.eclipse.che.api.core.notification.EventService;
-import org.eclipse.che.api.environment.server.CheEnvironmentEngine;
-import org.eclipse.che.api.environment.server.NoOpMachineInstance;
-import org.eclipse.che.api.environment.server.exception.EnvironmentException;
-import org.eclipse.che.api.environment.server.exception.EnvironmentNotRunningException;
-import org.eclipse.che.api.environment.server.exception.EnvironmentStartInterruptedException;
-import org.eclipse.che.api.machine.server.exception.SnapshotException;
-import org.eclipse.che.api.machine.server.model.impl.MachineConfigImpl;
-import org.eclipse.che.api.machine.server.model.impl.MachineImpl;
-import org.eclipse.che.api.machine.server.model.impl.MachineLimitsImpl;
-import org.eclipse.che.api.machine.server.model.impl.MachineRuntimeInfoImpl;
-import org.eclipse.che.api.machine.server.model.impl.MachineSourceImpl;
-import org.eclipse.che.api.machine.server.model.impl.SnapshotImpl;
-import org.eclipse.che.api.machine.server.spi.Instance;
-import org.eclipse.che.api.machine.server.spi.SnapshotDao;
-import org.eclipse.che.api.workspace.server.WorkspaceRuntimes.RuntimeState;
+import org.eclipse.che.api.workspace.server.devfile.convert.DevfileConverter;
+import org.eclipse.che.api.workspace.server.event.RuntimeAbnormalStoppedEvent;
+import org.eclipse.che.api.workspace.server.event.RuntimeAbnormalStoppingEvent;
+import org.eclipse.che.api.workspace.server.hc.probe.ProbeScheduler;
+import org.eclipse.che.api.workspace.server.model.impl.CommandImpl;
 import org.eclipse.che.api.workspace.server.model.impl.EnvironmentImpl;
-import org.eclipse.che.api.workspace.server.model.impl.ExtendedMachineImpl;
+import org.eclipse.che.api.workspace.server.model.impl.MachineImpl;
+import org.eclipse.che.api.workspace.server.model.impl.RecipeImpl;
+import org.eclipse.che.api.workspace.server.model.impl.RuntimeIdentityImpl;
+import org.eclipse.che.api.workspace.server.model.impl.RuntimeImpl;
+import org.eclipse.che.api.workspace.server.model.impl.WarningImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
-import org.eclipse.che.api.workspace.server.model.impl.WorkspaceRuntimeImpl;
-import org.eclipse.che.api.workspace.shared.dto.event.WorkspaceStatusEvent;
-import org.eclipse.che.api.workspace.shared.dto.event.WorkspaceStatusEvent.EventType;
+import org.eclipse.che.api.workspace.server.model.impl.devfile.DevfileImpl;
+import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
+import org.eclipse.che.api.workspace.server.spi.InternalRuntime;
+import org.eclipse.che.api.workspace.server.spi.RuntimeContext;
+import org.eclipse.che.api.workspace.server.spi.RuntimeInfrastructure;
+import org.eclipse.che.api.workspace.server.spi.WorkspaceDao;
+import org.eclipse.che.api.workspace.server.spi.environment.InternalEnvironment;
+import org.eclipse.che.api.workspace.server.spi.environment.InternalEnvironmentFactory;
+import org.eclipse.che.api.workspace.shared.dto.RuntimeIdentityDto;
+import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.core.db.DBInitializer;
 import org.eclipse.che.dto.server.DtoFactory;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.testng.MockitoTestNGListener;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
-/**
- * @author Yevhenii Voevodin
- * @author Alexander Garagatyi
- */
+/** Tests {@link WorkspaceRuntimes}. */
 @Listeners(MockitoTestNGListener.class)
 public class WorkspaceRuntimesTest {
 
-  @Mock private EventService eventService;
-  @Mock private CheEnvironmentEngine envEngine;
-  @Mock private AgentSorter agentSorter;
-  @Mock private AgentLauncherFactory launcherFactory;
-  @Mock private AgentRegistry agentRegistry;
-  @Mock private WorkspaceSharedPool sharedPool;
-  @Mock private SnapshotDao snapshotDao;
-  @Mock private Future<WorkspaceRuntimeImpl> runtimeFuture;
-  @Mock private WorkspaceRuntimes.StartTask startTask;
+  private static final String TEST_ENVIRONMENT_TYPE = "test";
 
-  @Captor private ArgumentCaptor<WorkspaceStatusEvent> eventCaptor;
-  @Captor private ArgumentCaptor<Callable<?>> taskCaptor;
-  @Captor private ArgumentCaptor<Collection<SnapshotImpl>> snapshotsCaptor;
+  @Mock private EventService eventService;
+
+  @Mock private WorkspaceDao workspaceDao;
+
+  @Mock private DBInitializer dbInitializer;
+
+  @Mock private WorkspaceSharedPool sharedPool;
+
+  @Mock private ProbeScheduler probeScheduler;
+
+  @Mock private WorkspaceLockService lockService;
+
+  @Mock private WorkspaceStatusCache statuses;
+
+  @Mock private DevfileConverter devfileConverter;
+
+  private RuntimeInfrastructure infrastructure;
+
+  @Mock private InternalEnvironmentFactory<InternalEnvironment> testEnvFactory;
 
   private WorkspaceRuntimes runtimes;
-  private ConcurrentMap<String, RuntimeState> runtimeStates;
 
   @BeforeMethod
   public void setUp() throws Exception {
-    MockitoAnnotations.initMocks(this);
+    infrastructure = spy(new TestInfrastructure());
+
     runtimes =
         new WorkspaceRuntimes(
             eventService,
-            envEngine,
-            agentSorter,
-            launcherFactory,
-            agentRegistry,
-            snapshotDao,
+            ImmutableMap.of(TEST_ENVIRONMENT_TYPE, testEnvFactory),
+            infrastructure,
             sharedPool,
-            runtimeStates = new ConcurrentHashMap<>());
-  }
-
-  @Test(dataProvider = "allStatuses")
-  public void getsStatus(WorkspaceStatus status) throws Exception {
-    setRuntime("workspace", status);
-
-    assertEquals(runtimes.getStatus("workspace"), status);
+            workspaceDao,
+            dbInitializer,
+            probeScheduler,
+            statuses,
+            lockService,
+            devfileConverter);
   }
 
   @Test(
-    expectedExceptions = NotFoundException.class,
-    expectedExceptionsMessageRegExp = "Workspace with id 'non_running' is not running"
-  )
-  public void throwsNotFoundExceptionWhenGettingNonExistingRuntime() throws Exception {
-    runtimes.getRuntime("non_running");
+      expectedExceptions = NotFoundException.class,
+      expectedExceptionsMessageRegExp =
+          "Workspace 'account:ws' doesn't contain environment 'non-existing'")
+  public void throwsNotFoundExceptionWhenStartWorkspaceWithNotExistingEnv() throws Exception {
+    final WorkspaceImpl workspace = new WorkspaceImpl();
+    WorkspaceConfigImpl config = new WorkspaceConfigImpl();
+    workspace.setAccount(new AccountImpl("acc123", "account", "any"));
+    workspace.setConfig(config);
+    config.setName("ws");
+    config.getEnvironments().put("default", new EnvironmentImpl());
+
+    runtimes.validate(workspace, "non-existing");
   }
 
   @Test
-  public void returnsStoppedStatusWhenWorkspaceIsNotRunning() throws Exception {
-    assertEquals(runtimes.getStatus("not_running"), WorkspaceStatus.STOPPED);
+  public void internalEnvironmentCreationShouldRespectNoEnvironmentCase() throws Exception {
+    InternalEnvironmentFactory noEnvFactory = mock(InternalEnvironmentFactory.class);
+    runtimes =
+        new WorkspaceRuntimes(
+            eventService,
+            ImmutableMap.of(
+                TEST_ENVIRONMENT_TYPE, testEnvFactory, NO_ENVIRONMENT_RECIPE_TYPE, noEnvFactory),
+            infrastructure,
+            sharedPool,
+            workspaceDao,
+            dbInitializer,
+            probeScheduler,
+            statuses,
+            lockService,
+            devfileConverter);
+    InternalEnvironment expectedEnvironment = mock(InternalEnvironment.class);
+    when(noEnvFactory.create(eq(null))).thenReturn(expectedEnvironment);
+
+    InternalEnvironment actualEnvironment =
+        runtimes.createInternalEnvironment(null, emptyMap(), emptyList());
+
+    assertEquals(actualEnvironment, expectedEnvironment);
+  }
+
+  @Test(
+      expectedExceptions = NotFoundException.class,
+      expectedExceptionsMessageRegExp =
+          "InternalEnvironmentFactory is not configured for recipe type: 'not-supported-type'")
+  public void internalEnvironmentShouldThrowExceptionWhenNoEnvironmentFactoryFoundForRecipeType()
+      throws Exception {
+    EnvironmentImpl environment = new EnvironmentImpl();
+    environment.setRecipe(new RecipeImpl("not-supported-type", "", "", null));
+    runtimes.createInternalEnvironment(environment, emptyMap(), emptyList());
+  }
+
+  @Test(
+      expectedExceptions = NotFoundException.class,
+      expectedExceptionsMessageRegExp =
+          "InternalEnvironmentFactory is not configured for recipe type: '"
+              + NO_ENVIRONMENT_RECIPE_TYPE
+              + "'")
+  public void
+      internalEnvironmentShouldThrowExceptionWhenNoEnvironmentFactoryFoundForNoEnvironmentWorkspaceCase()
+          throws Exception {
+    runtimes.createInternalEnvironment(null, emptyMap(), emptyList());
   }
 
   @Test
-  public void getsRuntime() throws Exception {
-    setRuntime("workspace", WorkspaceStatus.RUNNING, "env-name");
-    List<Instance> machines = prepareMachines("workspace", "env-name");
+  public void runtimeIsRecoveredForWorkspaceWithConfig() throws Exception {
+    RuntimeIdentity identity = new RuntimeIdentityImpl("workspace123", "my-env", "myId");
+    mockWorkspaceWithConfig(identity);
+    RuntimeContext context = mockContext(identity);
+    when(context.getRuntime())
+        .thenReturn(new TestInternalRuntime(context, emptyMap(), WorkspaceStatus.STARTING));
+    doReturn(context).when(infrastructure).prepare(eq(identity), any());
+    doReturn(mock(InternalEnvironment.class)).when(testEnvFactory).create(any());
+    when(statuses.get(anyString())).thenReturn(WorkspaceStatus.STARTING);
 
-    assertEquals(runtimes.getRuntime("workspace"), new WorkspaceRuntimeImpl("env-name", machines));
-    verify(envEngine).getMachines("workspace");
-  }
+    // try recover
+    runtimes.recoverOne(infrastructure, identity);
 
-  @Test
-  public void hasRuntime() {
-    setRuntime("workspace", WorkspaceStatus.STARTING);
-
-    assertTrue(runtimes.hasRuntime("workspace"));
-  }
-
-  @Test
-  public void doesNotHaveRuntime() {
-    assertFalse(runtimes.hasRuntime("not_running"));
-  }
-
-  @Test
-  public void injectsRuntime() throws Exception {
-    setRuntime("workspace", WorkspaceStatus.RUNNING, "env-name");
-    List<Instance> machines = prepareMachines("workspace", "env-name");
-    WorkspaceImpl workspace = WorkspaceImpl.builder().setId("workspace").build();
-
+    WorkspaceImpl workspace = WorkspaceImpl.builder().setId(identity.getWorkspaceId()).build();
     runtimes.injectRuntime(workspace);
+    assertNotNull(workspace.getRuntime());
+    assertEquals(workspace.getStatus(), WorkspaceStatus.STARTING);
+  }
 
+  @Test
+  public void runtimeIsRecoveredForWorkspaceWithDevfile() throws Exception {
+    RuntimeIdentity identity = new RuntimeIdentityImpl("workspace123", "default", "myId");
+
+    WorkspaceImpl workspaceMock = mockWorkspaceWithDevfile(identity);
+    RuntimeContext context = mockContext(identity);
+    when(context.getRuntime())
+        .thenReturn(new TestInternalRuntime(context, emptyMap(), WorkspaceStatus.STARTING));
+    doReturn(context).when(infrastructure).prepare(eq(identity), any());
+    doReturn(mock(InternalEnvironment.class)).when(testEnvFactory).create(any());
+    when(statuses.get(anyString())).thenReturn(WorkspaceStatus.STARTING);
+
+    // try recover
+    runtimes.recoverOne(infrastructure, identity);
+
+    WorkspaceImpl workspace = WorkspaceImpl.builder().setId(identity.getWorkspaceId()).build();
+    runtimes.injectRuntime(workspace);
+    assertNotNull(workspace.getRuntime());
+    assertEquals(workspace.getStatus(), WorkspaceStatus.STARTING);
+
+    verify(devfileConverter).convert(workspaceMock.getDevfile());
+  }
+
+  @Test(
+      expectedExceptions = ServerException.class,
+      expectedExceptionsMessageRegExp =
+          "Workspace configuration is missing for the runtime 'workspace123:my-env'. Runtime won't be recovered")
+  public void runtimeIsNotRecoveredIfNoWorkspaceFound() throws Exception {
+    RuntimeIdentity identity = new RuntimeIdentityImpl("workspace123", "my-env", "myId");
+    when(workspaceDao.get(identity.getWorkspaceId())).thenThrow(new NotFoundException("no!"));
+
+    // try recover
+    runtimes.recoverOne(infrastructure, identity);
+
+    assertFalse(runtimes.hasRuntime(identity.getWorkspaceId()));
+  }
+
+  @Test(
+      expectedExceptions = ServerException.class,
+      expectedExceptionsMessageRegExp =
+          "Environment configuration is missing for the runtime 'workspace123:my-env'. Runtime won't be recovered")
+  public void runtimeIsNotRecoveredIfNoEnvironmentFound() throws Exception {
+    RuntimeIdentity identity = new RuntimeIdentityImpl("workspace123", "my-env", "myId");
+    WorkspaceImpl workspace = mockWorkspaceWithConfig(identity);
+    when(workspace.getConfig().getEnvironments()).thenReturn(emptyMap());
+
+    // try recover
+    runtimes.recoverOne(infrastructure, identity);
+
+    assertFalse(runtimes.hasRuntime(identity.getWorkspaceId()));
+  }
+
+  @Test(
+      expectedExceptions = ServerException.class,
+      expectedExceptionsMessageRegExp =
+          "Couldn't recover runtime 'workspace123:my-env'. Error: oops!")
+  public void runtimeIsNotRecoveredIfInfraPreparationFailed() throws Exception {
+    RuntimeIdentity identity = new RuntimeIdentityImpl("workspace123", "my-env", "myId");
+
+    mockWorkspaceWithConfig(identity);
+    InternalEnvironment internalEnvironment = mock(InternalEnvironment.class);
+    doReturn(internalEnvironment).when(testEnvFactory).create(any(Environment.class));
+    doThrow(new InfrastructureException("oops!"))
+        .when(infrastructure)
+        .prepare(eq(identity), any(InternalEnvironment.class));
+
+    // try recover
+    runtimes.recoverOne(infrastructure, identity);
+
+    assertFalse(runtimes.hasRuntime(identity.getWorkspaceId()));
+  }
+
+  @Test
+  public void runtimeRecoveryContinuesThroughException() throws Exception {
+    // Given
+    RuntimeIdentityImpl identity1 = new RuntimeIdentityImpl("workspace1", "env1", "owner1");
+    RuntimeIdentityImpl identity2 = new RuntimeIdentityImpl("workspace2", "env2", "owner2");
+    RuntimeIdentityImpl identity3 = new RuntimeIdentityImpl("workspace3", "env3", "owner3");
+    Set<RuntimeIdentity> identities =
+        ImmutableSet.<RuntimeIdentity>builder()
+            .add(identity1)
+            .add(identity2)
+            .add(identity3)
+            .build();
+    doReturn(identities).when(infrastructure).getIdentities();
+
+    mockWorkspaceWithConfig(identity1);
+    mockWorkspaceWithConfig(identity2);
+    mockWorkspaceWithConfig(identity3);
+    when(statuses.get(anyString())).thenReturn(WorkspaceStatus.STARTING);
+
+    RuntimeContext context1 = mockContext(identity1);
+    when(context1.getRuntime())
+        .thenReturn(new TestInternalRuntime(context1, emptyMap(), WorkspaceStatus.STARTING));
+    doReturn(context1).when(infrastructure).prepare(eq(identity1), any());
+    RuntimeContext context2 = mockContext(identity1);
+    when(context2.getRuntime())
+        .thenReturn(new TestInternalRuntime(context2, emptyMap(), WorkspaceStatus.STARTING));
+    doReturn(context2).when(infrastructure).prepare(eq(identity2), any());
+    RuntimeContext context3 = mockContext(identity1);
+    when(context3.getRuntime())
+        .thenReturn(new TestInternalRuntime(context3, emptyMap(), WorkspaceStatus.STARTING));
+    doReturn(context3).when(infrastructure).prepare(eq(identity3), any());
+
+    InternalEnvironment internalEnvironment = mock(InternalEnvironment.class);
+    doReturn(internalEnvironment).when(testEnvFactory).create(any(Environment.class));
+
+    // Want to fail recovery of identity2
+    doThrow(new InfrastructureException("oops!"))
+        .when(infrastructure)
+        .prepare(eq(identity2), any(InternalEnvironment.class));
+
+    // When
+    runtimes.new RecoverRuntimesTask(identities).run();
+
+    // Then
+    verify(infrastructure).prepare(identity1, internalEnvironment);
+    verify(infrastructure).prepare(identity2, internalEnvironment);
+    verify(infrastructure).prepare(identity3, internalEnvironment);
+
+    WorkspaceImpl workspace1 = WorkspaceImpl.builder().setId(identity1.getWorkspaceId()).build();
+    runtimes.injectRuntime(workspace1);
+    assertNotNull(workspace1.getRuntime());
+    assertEquals(workspace1.getStatus(), WorkspaceStatus.STARTING);
+    WorkspaceImpl workspace3 = WorkspaceImpl.builder().setId(identity3.getWorkspaceId()).build();
+    runtimes.injectRuntime(workspace3);
+    assertNotNull(workspace3.getRuntime());
+    assertEquals(workspace3.getStatus(), WorkspaceStatus.STARTING);
+  }
+
+  @Test
+  public void runtimeRecoveryContinuesThroughRuntimeException() throws Exception {
+    // Given
+    RuntimeIdentityImpl identity1 = new RuntimeIdentityImpl("workspace1", "env1", "owner1");
+    RuntimeIdentityImpl identity2 = new RuntimeIdentityImpl("workspace2", "env2", "owner2");
+    RuntimeIdentityImpl identity3 = new RuntimeIdentityImpl("workspace3", "env3", "owner3");
+    Set<RuntimeIdentity> identities =
+        ImmutableSet.<RuntimeIdentity>builder()
+            .add(identity1)
+            .add(identity2)
+            .add(identity3)
+            .build();
+    doReturn(identities).when(infrastructure).getIdentities();
+
+    mockWorkspaceWithConfig(identity1);
+    mockWorkspaceWithConfig(identity2);
+    mockWorkspaceWithConfig(identity3);
+    when(statuses.get(anyString())).thenReturn(WorkspaceStatus.STARTING);
+
+    RuntimeContext context1 = mockContext(identity1);
+    when(context1.getRuntime())
+        .thenReturn(new TestInternalRuntime(context1, emptyMap(), WorkspaceStatus.STARTING));
+    doReturn(context1).when(infrastructure).prepare(eq(identity1), any());
+    RuntimeContext context2 = mockContext(identity1);
+    when(context2.getRuntime())
+        .thenReturn(new TestInternalRuntime(context2, emptyMap(), WorkspaceStatus.STARTING));
+    doReturn(context2).when(infrastructure).prepare(eq(identity2), any());
+    RuntimeContext context3 = mockContext(identity1);
+    when(context3.getRuntime())
+        .thenReturn(new TestInternalRuntime(context3, emptyMap(), WorkspaceStatus.STARTING));
+    doReturn(context3).when(infrastructure).prepare(eq(identity3), any());
+
+    InternalEnvironment internalEnvironment = mock(InternalEnvironment.class);
+    doReturn(internalEnvironment).when(testEnvFactory).create(any(Environment.class));
+
+    // Want to fail recovery of identity2
+    doThrow(new RuntimeException("oops!"))
+        .when(infrastructure)
+        .prepare(eq(identity2), any(InternalEnvironment.class));
+
+    // When
+    runtimes.new RecoverRuntimesTask(identities).run();
+
+    // Then
+    verify(infrastructure).prepare(identity1, internalEnvironment);
+    verify(infrastructure).prepare(identity2, internalEnvironment);
+    verify(infrastructure).prepare(identity3, internalEnvironment);
+
+    WorkspaceImpl workspace1 = WorkspaceImpl.builder().setId(identity1.getWorkspaceId()).build();
+    runtimes.injectRuntime(workspace1);
+    assertNotNull(workspace1.getRuntime());
+    assertEquals(workspace1.getStatus(), WorkspaceStatus.STARTING);
+    WorkspaceImpl workspace3 = WorkspaceImpl.builder().setId(identity3.getWorkspaceId()).build();
+    runtimes.injectRuntime(workspace3);
+    assertNotNull(workspace3.getRuntime());
+    assertEquals(workspace3.getStatus(), WorkspaceStatus.STARTING);
+  }
+
+  @Test
+  public void attributesIsSetWhenRuntimeAbnormallyStopped() throws Exception {
+    String error = "Some kind of error happened";
+    EventService localEventService = new EventService();
+    WorkspaceRuntimes localRuntimes =
+        new WorkspaceRuntimes(
+            localEventService,
+            ImmutableMap.of(TEST_ENVIRONMENT_TYPE, testEnvFactory),
+            infrastructure,
+            sharedPool,
+            workspaceDao,
+            dbInitializer,
+            probeScheduler,
+            statuses,
+            lockService,
+            devfileConverter);
+    localRuntimes.init();
+    RuntimeIdentityDto identity =
+        DtoFactory.newDto(RuntimeIdentityDto.class)
+            .withWorkspaceId("workspace123")
+            .withEnvName("my-env")
+            .withOwnerId("myId");
+    mockWorkspaceWithConfig(identity);
+    RuntimeContext context = mockContext(identity);
+    when(context.getRuntime()).thenReturn(new TestInternalRuntime(context));
+    when(statuses.remove(anyString())).thenReturn(WorkspaceStatus.RUNNING);
+
+    RuntimeAbnormalStoppedEvent event = new RuntimeAbnormalStoppedEvent(identity, error);
+    localRuntimes.recoverOne(infrastructure, identity);
+    ArgumentCaptor<WorkspaceImpl> captor = ArgumentCaptor.forClass(WorkspaceImpl.class);
+
+    // when
+    localEventService.publish(event);
+
+    // then
+    verify(workspaceDao, atLeastOnce()).update(captor.capture());
+    WorkspaceImpl ws = captor.getAllValues().get(captor.getAllValues().size() - 1);
+    assertNotNull(ws.getAttributes().get(STOPPED_ATTRIBUTE_NAME));
+    assertTrue(Boolean.valueOf(ws.getAttributes().get(STOPPED_ABNORMALLY_ATTRIBUTE_NAME)));
+    assertEquals(ws.getAttributes().get(ERROR_MESSAGE_ATTRIBUTE_NAME), error);
+  }
+
+  @Test
+  public void stoppingStatusIsSetWhenRuntimeAbnormallyStopping() throws Exception {
+    String error = "Some kind of error happened";
+    EventService localEventService = new EventService();
+    WorkspaceRuntimes localRuntimes =
+        new WorkspaceRuntimes(
+            localEventService,
+            ImmutableMap.of(TEST_ENVIRONMENT_TYPE, testEnvFactory),
+            infrastructure,
+            sharedPool,
+            workspaceDao,
+            dbInitializer,
+            probeScheduler,
+            statuses,
+            lockService,
+            devfileConverter);
+    localRuntimes.init();
+    RuntimeIdentityDto identity =
+        DtoFactory.newDto(RuntimeIdentityDto.class)
+            .withWorkspaceId("workspace123")
+            .withEnvName("my-env")
+            .withOwnerId("myId");
+    mockWorkspaceWithConfig(identity);
+    RuntimeContext context = mockContext(identity);
+    when(context.getRuntime()).thenReturn(new TestInternalRuntime(context));
+
+    RuntimeAbnormalStoppingEvent event = new RuntimeAbnormalStoppingEvent(identity, error);
+    localRuntimes.recoverOne(infrastructure, identity);
+
+    // when
+    localEventService.publish(event);
+
+    // then
+    verify(statuses).replace("workspace123", WorkspaceStatus.STOPPING);
+  }
+
+  @Test
+  public void shouldInjectRuntime() throws Exception {
+    // given
+    WorkspaceImpl workspace = new WorkspaceImpl();
+    workspace.setId("ws123");
+    when(statuses.get("ws123")).thenReturn(WorkspaceStatus.RUNNING);
+
+    ImmutableMap<String, Machine> machines =
+        ImmutableMap.of("machine", new MachineImpl(emptyMap(), emptyMap(), MachineStatus.STARTING));
+
+    RuntimeIdentity identity = new RuntimeIdentityImpl("ws123", "my-env", "myId");
+    RuntimeContext context = mockContext(identity);
+    doReturn(context).when(infrastructure).prepare(eq(identity), any());
+
+    ConcurrentHashMap<String, InternalRuntime<?>> runtimesStorage = new ConcurrentHashMap<>();
+    TestInternalRuntime testRuntime =
+        new TestInternalRuntime(context, machines, WorkspaceStatus.STARTING);
+    runtimesStorage.put("ws123", testRuntime);
+    WorkspaceRuntimes localRuntimes =
+        new WorkspaceRuntimes(
+            runtimesStorage,
+            eventService,
+            ImmutableMap.of(TEST_ENVIRONMENT_TYPE, testEnvFactory),
+            infrastructure,
+            sharedPool,
+            workspaceDao,
+            dbInitializer,
+            probeScheduler,
+            statuses,
+            lockService,
+            devfileConverter);
+
+    // when
+    localRuntimes.injectRuntime(workspace);
+
+    // then
     assertEquals(workspace.getStatus(), WorkspaceStatus.RUNNING);
-    assertEquals(workspace.getRuntime(), new WorkspaceRuntimeImpl("env-name", machines));
+    assertEquals(workspace.getRuntime(), asRuntime(testRuntime));
   }
 
   @Test
-  public void injectsStoppedStatusWhenWorkspaceDoesNotHaveRuntime() throws Exception {
-    WorkspaceImpl workspace = WorkspaceImpl.builder().setId("workspace").build();
+  public void shouldRecoverRuntimeWhenThereIsNotCachedOneDuringInjecting() throws Exception {
+    // given
+    RuntimeIdentity identity = new RuntimeIdentityImpl("workspace123", "my-env", "myId");
+    mockWorkspaceWithConfig(identity);
 
+    when(statuses.get("workspace123")).thenReturn(WorkspaceStatus.STARTING);
+    RuntimeContext context = mockContext(identity);
+    doReturn(context).when(infrastructure).prepare(eq(identity), any());
+    ImmutableMap<String, Machine> machines =
+        ImmutableMap.of("machine", new MachineImpl(emptyMap(), emptyMap(), MachineStatus.STARTING));
+    TestInternalRuntime testRuntime =
+        new TestInternalRuntime(context, machines, WorkspaceStatus.STARTING);
+    when(context.getRuntime()).thenReturn(testRuntime);
+    doReturn(mock(InternalEnvironment.class)).when(testEnvFactory).create(any());
+    doReturn(ImmutableSet.of(identity)).when(infrastructure).getIdentities();
+
+    // when
+    WorkspaceImpl workspace = new WorkspaceImpl();
+    workspace.setId("workspace123");
     runtimes.injectRuntime(workspace);
 
+    // then
+    assertEquals(workspace.getStatus(), WorkspaceStatus.STARTING);
+    assertEquals(workspace.getRuntime(), asRuntime(testRuntime));
+  }
+
+  @Test
+  public void shouldNotInjectRuntimeIfThereIsNoCachedStatus() throws Exception {
+    // when
+    WorkspaceImpl workspace = new WorkspaceImpl();
+    workspace.setId("workspace123");
+    runtimes.injectRuntime(workspace);
+
+    // then
     assertEquals(workspace.getStatus(), WorkspaceStatus.STOPPED);
     assertNull(workspace.getRuntime());
   }
 
   @Test
-  public void injectsStatusAndEmptyMachinesWhenCanNotGetEnvironmentMachines() throws Exception {
-    setRuntime("workspace", WorkspaceStatus.RUNNING, "env-name");
-    setNoMachinesForWorkspace("workspace");
-    WorkspaceImpl workspace = WorkspaceImpl.builder().setId("workspace").build();
+  public void shouldNotInjectRuntimeIfExceptionOccurredOnRuntimeFetching() throws Exception {
+    // given
+    RuntimeIdentity identity = new RuntimeIdentityImpl("workspace123", "my-env", "myId");
+    mockWorkspaceWithConfig(identity);
 
+    when(statuses.get("workspace123")).thenReturn(WorkspaceStatus.STARTING);
+    RuntimeContext context = mockContext(identity);
+    ImmutableMap<String, Machine> machines =
+        ImmutableMap.of("machine", new MachineImpl(emptyMap(), emptyMap(), MachineStatus.STARTING));
+    when(context.getRuntime())
+        .thenReturn(new TestInternalRuntime(context, machines, WorkspaceStatus.STARTING));
+    doThrow(new InfrastructureException("error")).when(infrastructure).prepare(eq(identity), any());
+
+    // when
+    WorkspaceImpl workspace = new WorkspaceImpl();
+    workspace.setId("workspace123");
     runtimes.injectRuntime(workspace);
 
-    assertEquals(workspace.getStatus(), WorkspaceStatus.RUNNING);
-    assertEquals(workspace.getRuntime().getActiveEnv(), "env-name");
-    assertTrue(workspace.getRuntime().getMachines().isEmpty());
-  }
-
-  @Test
-  public void startsWorkspace() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    List<Instance> machines = allowEnvironmentStart(workspace, "env-name");
-    prepareMachines(workspace.getId(), machines);
-
-    CompletableFuture<WorkspaceRuntimeImpl> cmpFuture =
-        runtimes.startAsync(workspace, "env-name", false);
-    captureAsyncTaskAndExecuteSynchronously();
-    WorkspaceRuntimeImpl runtime = cmpFuture.get();
-
-    assertEquals(runtimes.getStatus(workspace.getId()), WorkspaceStatus.RUNNING);
-    assertEquals(runtime.getActiveEnv(), "env-name");
-    assertEquals(runtime.getMachines().size(), machines.size());
-    verifyEventsSequence(
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPED,
-            WorkspaceStatus.STARTING,
-            EventType.STARTING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STARTING,
-            WorkspaceStatus.RUNNING,
-            EventType.RUNNING,
-            null));
-  }
-
-  @Test(
-    expectedExceptions = ConflictException.class,
-    expectedExceptionsMessageRegExp =
-        "Could not start workspace 'test-workspace' because its status is 'RUNNING'"
-  )
-  public void throwsConflictExceptionWhenWorkspaceIsRunning() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    setRuntime(workspace.getId(), WorkspaceStatus.RUNNING);
-
-    runtimes.startAsync(workspace, "env-name", false);
-  }
-
-  @Test
-  public void cancelsWorkspaceStartIfEnvironmentStartIsInterrupted() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    rejectEnvironmentStart(
-        workspace,
-        "env-name",
-        new EnvironmentStartInterruptedException(workspace.getId(), "env-name"));
-
-    CompletableFuture<WorkspaceRuntimeImpl> cmpFuture =
-        runtimes.startAsync(workspace, "env-name", false);
-
-    captureAndVerifyRuntimeStateAfterInterruption(workspace, cmpFuture);
-  }
-
-  @Test
-  public void failsWorkspaceStartWhenEnvironmentStartIsFailed() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    rejectEnvironmentStart(workspace, "env-name", new EnvironmentException("no no no!"));
-
-    CompletableFuture<WorkspaceRuntimeImpl> cmpFuture =
-        runtimes.startAsync(workspace, "env-name", false);
-
-    try {
-      captureAsyncTaskAndExecuteSynchronously();
-    } catch (EnvironmentException x) {
-      assertEquals(x.getMessage(), "no no no!");
-      verifyCompletionException(cmpFuture, EnvironmentException.class, "no no no!");
-    }
-    assertFalse(runtimes.hasRuntime(workspace.getId()));
-    verifyEventsSequence(
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPED,
-            WorkspaceStatus.STARTING,
-            EventType.STARTING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STARTING,
-            WorkspaceStatus.STOPPED,
-            EventType.ERROR,
-            "Start of environment 'env-name' failed. Error: no no no!"));
-  }
-
-  @Test
-  public void interruptsStartAfterEnvironmentIsStartedButRuntimeStatusIsNotRunning()
-      throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    // let's say status is changed to STOPPING by stop method,
-    // but starting thread hasn't been interrupted yet
-    allowEnvironmentStart(
-        workspace, "env-name", () -> setRuntime("workspace", WorkspaceStatus.STOPPING));
-
-    CompletableFuture<WorkspaceRuntimeImpl> cmpFuture =
-        runtimes.startAsync(workspace, "env-name", false);
-
-    captureAndVerifyRuntimeStateAfterInterruption(workspace, cmpFuture);
-    verifyEventsSequence(
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPED,
-            WorkspaceStatus.STARTING,
-            EventType.STARTING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STARTING,
-            WorkspaceStatus.STOPPING,
-            EventType.STOPPING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPING,
-            WorkspaceStatus.STOPPED,
-            EventType.STOPPED,
-            null));
-    verify(envEngine).stop(workspace.getId());
-  }
-
-  @Test
-  public void interruptsStartAfterEnvironmentIsStartedButThreadIsInterrupted() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    // the status is successfully updated from STARTING -> RUNNING but after
-    // that thread is interrupted so #stop is waiting for starting thread to stop the environment
-    allowEnvironmentStart(workspace, "env-name", () -> Thread.currentThread().interrupt());
-
-    CompletableFuture<WorkspaceRuntimeImpl> cmpFuture =
-        runtimes.startAsync(workspace, "env-name", false);
-
-    captureAndVerifyRuntimeStateAfterInterruption(workspace, cmpFuture);
-    verifyEventsSequence(
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPED,
-            WorkspaceStatus.STARTING,
-            EventType.STARTING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STARTING,
-            WorkspaceStatus.STOPPING,
-            EventType.STOPPING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPING,
-            WorkspaceStatus.STOPPED,
-            EventType.STOPPED,
-            null));
-    verify(envEngine).stop(workspace.getId());
-  }
-
-  @Test
-  public void throwsStartInterruptedExceptionWhenStartIsInterruptedAndEnvironmentStopIsFailed()
-      throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    // let's say status is changed to STOPPING by stop method,
-    // but starting thread hasn't been interrupted yet
-    allowEnvironmentStart(workspace, "env-name", () -> Thread.currentThread().interrupt());
-    rejectEnvironmentStop(workspace, new ServerException("no!"));
-
-    CompletableFuture<WorkspaceRuntimeImpl> cmpFuture =
-        runtimes.startAsync(workspace, "env-name", false);
-
-    captureAndVerifyRuntimeStateAfterInterruption(workspace, cmpFuture);
-    verifyEventsSequence(
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPED,
-            WorkspaceStatus.STARTING,
-            EventType.STARTING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STARTING,
-            WorkspaceStatus.STOPPING,
-            EventType.STOPPING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPING,
-            WorkspaceStatus.STOPPED,
-            EventType.ERROR,
-            "no!"));
-    verify(envEngine).stop(workspace.getId());
-  }
-
-  @Test
-  public void releasesClientsWhoWaitForStartTaskResultAndTaskIsCompleted() throws Exception {
-    ExecutorService pool = Executors.newCachedThreadPool();
-    CountDownLatch releasedLatch = new CountDownLatch(5);
-    // this thread + 5 awaiting threads
-    CyclicBarrier callTaskBarrier = new CyclicBarrier(6);
-
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    allowEnvironmentStart(workspace, "env-name");
-
-    // the action
-    runtimes.startAsync(workspace, "env-name", false);
-
-    // register waiters
-    for (int i = 0; i < 5; i++) {
-      WorkspaceRuntimes.StartTask startTask = runtimeStates.get(workspace.getId()).startTask;
-      pool.submit(
-          () -> {
-            // wait all the task to meet this barrier
-            callTaskBarrier.await();
-
-            // wait for start task to finish
-            startTask.await();
-
-            // good, release a part
-            releasedLatch.countDown();
-            return null;
-          });
-    }
-
-    callTaskBarrier.await();
-    captureAsyncTaskAndExecuteSynchronously();
-    try {
-      assertTrue(
-          releasedLatch.await(2, TimeUnit.SECONDS), "start task wait clients are not released");
-    } finally {
-      shutdownAndWaitPool(pool);
-    }
-  }
-
-  @Test
-  public void stopsRunningWorkspace() throws Exception {
-    setRuntime("workspace", WorkspaceStatus.RUNNING);
-
-    runtimes.stop("workspace");
-
-    verify(envEngine).stop("workspace");
-    verifyEventsSequence(
-        event(
-            "workspace",
-            WorkspaceStatus.RUNNING,
-            WorkspaceStatus.STOPPING,
-            EventType.STOPPING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPING,
-            WorkspaceStatus.STOPPED,
-            EventType.STOPPED,
-            null));
-    assertFalse(runtimeStates.containsKey("workspace"));
-  }
-
-  @Test
-  public void stopsTheRunningWorkspaceWhileServerExceptionOccurs() throws Exception {
-    setRuntime("workspace", WorkspaceStatus.RUNNING);
-    doThrow(new ServerException("no!")).when(envEngine).stop("workspace");
-
-    try {
-      runtimes.stop("workspace");
-    } catch (ServerException x) {
-      assertEquals(x.getMessage(), "no!");
-    }
-
-    verify(envEngine).stop("workspace");
-    assertFalse(runtimeStates.containsKey("workspace"));
-    verifyEventsSequence(
-        event(
-            "workspace",
-            WorkspaceStatus.RUNNING,
-            WorkspaceStatus.STOPPING,
-            EventType.STOPPING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPING,
-            WorkspaceStatus.STOPPED,
-            EventType.ERROR,
-            "no!"));
-  }
-
-  @Test
-  public void stopsTheRunningWorkspaceAndRethrowsTheErrorDifferentFromServerException()
-      throws Exception {
-    setRuntime("workspace", WorkspaceStatus.RUNNING);
-    doThrow(new EnvironmentNotRunningException("no!")).when(envEngine).stop("workspace");
-
-    try {
-      runtimes.stop("workspace");
-    } catch (ServerException x) {
-      assertEquals(x.getMessage(), "no!");
-      assertTrue(x.getCause() instanceof EnvironmentNotRunningException);
-    }
-
-    verify(envEngine).stop("workspace");
-    assertFalse(runtimeStates.containsKey("workspace"));
-    verifyEventsSequence(
-        event(
-            "workspace",
-            WorkspaceStatus.RUNNING,
-            WorkspaceStatus.STOPPING,
-            EventType.STOPPING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPING,
-            WorkspaceStatus.STOPPED,
-            EventType.ERROR,
-            "no!"));
-  }
-
-  @Test
-  public void cancellationOfPendingStartTask() throws Throwable {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    when(sharedPool.submit(any())).thenReturn(Futures.immediateFuture(null));
-
-    CompletableFuture<WorkspaceRuntimeImpl> cmpFuture =
-        runtimes.startAsync(workspace, "env-name", false);
-
-    // the real start is not being executed, fake sharedPool suppressed it
-    // so the situation is the same to the one if the task is cancelled before
-    // executor service started executing it
-    runtimes.stop(workspace.getId());
-
-    // start awaiting clients MUST receive interruption
-    try {
-      cmpFuture.get();
-    } catch (ExecutionException x) {
-      verifyCompletionException(
-          cmpFuture,
-          EnvironmentStartInterruptedException.class,
-          "Start of environment 'env-name' in workspace 'workspace' is interrupted");
-    }
-
-    // if there is a state when the future is being cancelled,
-    // and start task is marked as used, executor must not execute the
-    // task but throw cancellation exception instead, once start task is
-    // completed clients receive interrupted exception and cancellation doesn't bother them
-    try {
-      captureAsyncTaskAndExecuteSynchronously();
-    } catch (CancellationException cancelled) {
-      assertEquals(cancelled.getMessage(), "Start of the workspace 'workspace' was cancelled");
-    }
-
-    verifyEventsSequence(
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPED,
-            WorkspaceStatus.STARTING,
-            EventType.STARTING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STARTING,
-            WorkspaceStatus.STOPPING,
-            EventType.STOPPING,
-            null),
-        event(
-            "workspace",
-            WorkspaceStatus.STOPPING,
-            WorkspaceStatus.STOPPED,
-            EventType.STOPPED,
-            null));
-  }
-
-  @Test
-  public void cancellationOfRunningStartTask() throws Exception {
-    setRuntime("workspace", WorkspaceStatus.STARTING, "env-name", runtimeFuture, startTask);
-    doThrow(new EnvironmentStartInterruptedException("workspace", "env-name"))
-        .when(startTask)
-        .await();
-
-    runtimes.stop("workspace");
-
-    verify(runtimeFuture).cancel(true);
-    verify(startTask).await();
-  }
-
-  @Test(
-    expectedExceptions = NotFoundException.class,
-    expectedExceptionsMessageRegExp = "Workspace with id 'workspace' is not running"
-  )
-  public void throwsNotFoundExceptionWhenStoppingNotRunningWorkspace() throws Exception {
-    runtimes.stop("workspace");
-  }
-
-  @Test(
-    expectedExceptions = ConflictException.class,
-    expectedExceptionsMessageRegExp =
-        "Couldn't stop the workspace 'workspace' because its status is '.*'.*",
-    dataProvider = "notAllowedToStopStatuses"
-  )
-  public void doesNotStopTheWorkspaceWhenStatusIsWrong(WorkspaceStatus status) throws Exception {
-    setRuntime("workspace", status);
-
-    runtimes.stop("workspace");
-  }
-
-  @Test
-  public void shutdown() throws Exception {
-    setRuntime("workspace", WorkspaceStatus.RUNNING, "env-name");
-
-    runtimes.shutdown();
-
-    assertFalse(runtimes.hasRuntime("workspace"));
-    verify(envEngine).stop("workspace");
-  }
-
-  @Test(
-    expectedExceptions = IllegalStateException.class,
-    expectedExceptionsMessageRegExp = "Workspace runtimes service shutdown has been already called"
-  )
-  public void throwsExceptionWhenShutdownCalledTwice() throws Exception {
-    runtimes.shutdown();
-    runtimes.shutdown();
-  }
-
-  @Test
-  public void startedRuntimeAndReturnedFromGetMethodAreTheSame() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    allowEnvironmentStart(workspace, "env-name");
-    prepareMachines(workspace.getId(), "env-name");
-
-    CompletableFuture<WorkspaceRuntimeImpl> cmpFuture =
-        runtimes.startAsync(workspace, "env-name", false);
-    captureAsyncTaskAndExecuteSynchronously();
-
-    assertEquals(cmpFuture.get(), runtimes.getRuntime(workspace.getId()));
-  }
-
-  @Test
-  public void shouldBeAbleToStartMachine() throws Exception {
-    // when
-    setRuntime("workspace", WorkspaceStatus.RUNNING, "env-name");
-    MachineConfig config = newMachine("workspace", "env-name", "new", false).getConfig();
-    Instance instance = mock(Instance.class);
-    when(envEngine.startMachine(anyString(), any(MachineConfig.class), any())).thenReturn(instance);
-    when(instance.getConfig()).thenReturn(config);
-
-    // when
-    Instance actual = runtimes.startMachine("workspace", config);
-
     // then
-    assertEquals(actual, instance);
-    verify(envEngine).startMachine(eq("workspace"), eq(config), any());
-  }
-
-  @Test(
-    expectedExceptions = NotFoundException.class,
-    expectedExceptionsMessageRegExp = "Workspace with id '.*' is not running"
-  )
-  public void shouldNotStartMachineIfEnvironmentIsNotRunning() throws Exception {
-    // when
-    runtimes.startMachine("someWsID", mock(MachineConfig.class));
-
-    // then
-    verify(envEngine, never()).startMachine(anyString(), any(MachineConfig.class), any());
+    assertEquals(workspace.getStatus(), WorkspaceStatus.STOPPED);
+    assertNull(workspace.getRuntime());
   }
 
   @Test
-  public void shouldBeAbleToStopMachine() throws Exception {
-    // when
-    setRuntime("workspace", WorkspaceStatus.RUNNING);
-
-    // when
-    runtimes.stopMachine("workspace", "testMachineId");
-
-    // then
-    verify(envEngine).stopMachine("workspace", "testMachineId");
-  }
-
-  @Test(
-    expectedExceptions = NotFoundException.class,
-    expectedExceptionsMessageRegExp = "Workspace with id 'someWsID' is not running"
-  )
-  public void shouldNotStopMachineIfEnvironmentIsNotRunning() throws Exception {
-    // when
-    runtimes.stopMachine("someWsID", "someMachineId");
-
-    // then
-    verify(envEngine, never()).stopMachine(anyString(), anyString());
-  }
-
-  @Test
-  public void shouldBeAbleToGetMachine() throws Exception {
+  public void shouldReturnWorkspaceStatus() {
     // given
-    Instance expected = newMachine("workspace", "env-name", "existing", false);
-    when(envEngine.getMachine("workspace", expected.getId())).thenReturn(expected);
+    when(statuses.get("ws123")).thenReturn(WorkspaceStatus.STOPPING);
 
     // when
-    Instance actualMachine = runtimes.getMachine("workspace", expected.getId());
+    WorkspaceStatus fetchedStatus = runtimes.getStatus("ws123");
 
     // then
-    assertEquals(actualMachine, expected);
-    verify(envEngine).getMachine("workspace", expected.getId());
+    assertEquals(fetchedStatus, WorkspaceStatus.STOPPING);
   }
 
-  @Test(
-    expectedExceptions = NotFoundException.class,
-    expectedExceptionsMessageRegExp = "test exception"
-  )
-  public void shouldThrowExceptionIfGetMachineFromEnvEngineThrowsException() throws Exception {
+  @Test
+  public void shouldReturnStoppedWorkspaceStatusIfThereIsNotCachedValue() {
     // given
-    Instance expected = newMachine("workspace", "env-name", "existing", false);
-    when(envEngine.getMachine("workspace", expected.getId()))
-        .thenThrow(new NotFoundException("test exception"));
+    when(statuses.get("ws123")).thenReturn(null);
 
     // when
-    runtimes.getMachine("workspace", expected.getId());
+    WorkspaceStatus fetchedStatus = runtimes.getStatus("ws123");
 
     // then
-    verify(envEngine).getMachine("workspace", expected.getId());
+    assertEquals(fetchedStatus, WorkspaceStatus.STOPPED);
   }
 
   @Test
-  public void changesStatusFromRunningToSnapshotting() throws Exception {
-    setRuntime("workspace", WorkspaceStatus.RUNNING);
+  public void shouldReturnTrueIfThereIsCachedRuntimeStatusOnRuntimeExistenceChecking() {
+    // given
+    when(statuses.get("ws123")).thenReturn(WorkspaceStatus.STOPPING);
 
-    runtimes.snapshotAsync("workspace");
+    // when
+    boolean hasRuntime = runtimes.hasRuntime("ws123");
 
-    assertEquals(runtimes.getStatus("workspace"), WorkspaceStatus.SNAPSHOTTING);
+    // then
+    assertTrue(hasRuntime);
   }
 
   @Test
-  public void changesStatusFromSnapshottingToRunning() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    setRuntime(workspace.getId(), WorkspaceStatus.RUNNING, "env-name");
+  public void shouldReturnFalseIfThereIsNoCachedRuntimeStatusOnRuntimeExistenceChecking() {
+    // given
+    when(statuses.get("ws123")).thenReturn(null);
 
-    runtimes.snapshotAsync(workspace.getId());
+    // when
+    boolean hasRuntime = runtimes.hasRuntime("ws123");
 
-    captureAsyncTaskAndExecuteSynchronously();
-    assertEquals(runtimes.getStatus(workspace.getId()), WorkspaceStatus.RUNNING);
-  }
-
-  @Test(
-    expectedExceptions = NotFoundException.class,
-    expectedExceptionsMessageRegExp = "Workspace with id 'non-existing' is not running"
-  )
-  public void throwsNotFoundExceptionWhenBeginningSnapshottingForNonExistingWorkspace()
-      throws Exception {
-    runtimes.snapshot("non-existing");
-  }
-
-  @Test(
-    expectedExceptions = ConflictException.class,
-    expectedExceptionsMessageRegExp =
-        "Workspace with id '.*' is not 'RUNNING', it's status is 'SNAPSHOTTING'"
-  )
-  public void throwsConflictExceptionWhenBeginningSnapshottingForNotRunningWorkspace()
-      throws Exception {
-    setRuntime("workspace", WorkspaceStatus.RUNNING);
-
-    runtimes.snapshotAsync("workspace");
-    runtimes.snapshotAsync("workspace");
-  }
-
-  @Test(expectedExceptions = ServerException.class, expectedExceptionsMessageRegExp = "can't save")
-  public void failsToCreateSnapshotWhenDevMachineSnapshottingFailed() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    setRuntime(workspace.getId(), WorkspaceStatus.RUNNING);
-    prepareMachines(workspace.getId(), "env-name");
-    when(envEngine.saveSnapshot(any(), any())).thenThrow(new ServerException("can't save"));
-
-    try {
-      runtimes.snapshot(workspace.getId());
-    } catch (Exception x) {
-      verifyEventsSequence(
-          event(
-              workspace.getId(),
-              WorkspaceStatus.RUNNING,
-              WorkspaceStatus.SNAPSHOTTING,
-              EventType.SNAPSHOT_CREATING,
-              null),
-          event(
-              workspace.getId(),
-              WorkspaceStatus.SNAPSHOTTING,
-              WorkspaceStatus.RUNNING,
-              EventType.SNAPSHOT_CREATION_ERROR,
-              "can't save"));
-      throw x;
-    }
+    // then
+    assertFalse(hasRuntime);
   }
 
   @Test
-  public void removesNewlyCreatedSnapshotsWhenFailedToSaveTheirsMetadata() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    setRuntime(workspace.getId(), WorkspaceStatus.RUNNING, "env-name");
-    doThrow(new SnapshotException("test")).when(snapshotDao).replaceSnapshots(any(), any(), any());
-    SnapshotImpl snapshot = mock(SnapshotImpl.class);
-    when(envEngine.saveSnapshot(any(), any())).thenReturn(snapshot);
+  public void shouldReturnRuntimesIdsOfActiveWorkspaces() {
+    // given
+    when(statuses.asMap())
+        .thenReturn(
+            ImmutableMap.of(
+                "ws1", WorkspaceStatus.STARTING,
+                "ws2", WorkspaceStatus.RUNNING,
+                "ws3", WorkspaceStatus.STOPPING));
 
-    try {
-      runtimes.snapshot(workspace.getId());
-    } catch (ServerException x) {
-      assertEquals(x.getMessage(), "test");
-    }
+    // when
+    Set<String> active = runtimes.getActive();
 
-    verify(snapshotDao).replaceSnapshots(any(), any(), snapshotsCaptor.capture());
-    verify(envEngine, times(snapshotsCaptor.getValue().size())).removeSnapshot(snapshot);
-    verifyEventsSequence(
-        event(
-            workspace.getId(),
-            WorkspaceStatus.RUNNING,
-            WorkspaceStatus.SNAPSHOTTING,
-            EventType.SNAPSHOT_CREATING,
-            null),
-        event(
-            workspace.getId(),
-            WorkspaceStatus.SNAPSHOTTING,
-            WorkspaceStatus.RUNNING,
-            EventType.SNAPSHOT_CREATION_ERROR,
-            "test"));
+    // then
+    assertEquals(active.size(), 3);
+    assertTrue(active.containsAll(asList("ws1", "ws2", "ws3")));
   }
 
   @Test
-  public void removesOldSnapshotsWhenNewSnapshotsMetadataSuccessfullySaved() throws Exception {
-    WorkspaceImpl workspace = newWorkspace("workspace", "env-name");
-    setRuntime(workspace.getId(), WorkspaceStatus.RUNNING);
-    SnapshotImpl oldSnapshot = mock(SnapshotImpl.class);
-    doReturn((singletonList(oldSnapshot))).when(snapshotDao).replaceSnapshots(any(), any(), any());
+  public void shouldReturnWorkspaceIdsOfRunningRuntimes() {
+    // given
+    when(statuses.asMap())
+        .thenReturn(
+            ImmutableMap.of(
+                "ws1", WorkspaceStatus.STARTING,
+                "ws2", WorkspaceStatus.RUNNING,
+                "ws3", WorkspaceStatus.RUNNING,
+                "ws4", WorkspaceStatus.RUNNING,
+                "ws5", WorkspaceStatus.STOPPING));
 
-    runtimes.snapshot(workspace.getId());
+    // when
+    Set<String> running = runtimes.getRunning();
 
-    verify(envEngine).removeSnapshot(oldSnapshot);
-    verifyEventsSequence(
-        event(
-            workspace.getId(),
-            WorkspaceStatus.RUNNING,
-            WorkspaceStatus.SNAPSHOTTING,
-            EventType.SNAPSHOT_CREATING,
-            null),
-        event(
-            workspace.getId(),
-            WorkspaceStatus.SNAPSHOTTING,
-            WorkspaceStatus.RUNNING,
-            EventType.SNAPSHOT_CREATED,
-            null));
+    // then
+    assertEquals(running.size(), 3);
+    assertTrue(running.containsAll(asList("ws2", "ws3", "ws4")));
   }
 
-  @Test
-  public void getsRuntimesIds() {
-    setRuntime("workspace1", WorkspaceStatus.STARTING);
-    setRuntime("workspace2", WorkspaceStatus.RUNNING);
-    setRuntime("workspace3", WorkspaceStatus.STOPPING);
-    setRuntime("workspace4", WorkspaceStatus.SNAPSHOTTING);
+  private RuntimeContext mockContext(RuntimeIdentity identity)
+      throws ValidationException, InfrastructureException {
+    RuntimeContext context = mock(RuntimeContext.class);
+    InternalEnvironment internalEnvironment = mock(InternalEnvironment.class);
+    lenient().doReturn(internalEnvironment).when(testEnvFactory).create(any(Environment.class));
+    lenient().doReturn(context).when(infrastructure).prepare(eq(identity), eq(internalEnvironment));
+    lenient().when(context.getInfrastructure()).thenReturn(infrastructure);
+    lenient().when(context.getIdentity()).thenReturn(identity);
+    lenient().when(context.getEnvironment()).thenReturn(internalEnvironment);
 
-    assertEquals(
-        runtimes.getRuntimesIds(),
-        Sets.newHashSet("workspace1", "workspace2", "workspace3", "workspace4"));
+    List<Warning> warnings = new ArrayList<>();
+    warnings.add(createWarning());
+    lenient().when(internalEnvironment.getWarnings()).thenReturn(warnings);
+
+    return context;
   }
 
-  @Test
-  public void isAnyRunningReturnsFalseIfThereIsNoSingleRuntime() {
-    assertFalse(runtimes.isAnyRunning());
+  private WorkspaceImpl mockWorkspaceWithConfig(RuntimeIdentity identity)
+      throws NotFoundException, ServerException {
+    WorkspaceConfigImpl config = mock(WorkspaceConfigImpl.class);
+    EnvironmentImpl environment = mockEnvironment();
+    when(config.getEnvironments()).thenReturn(ImmutableMap.of(identity.getEnvName(), environment));
+
+    WorkspaceImpl workspace = mock(WorkspaceImpl.class);
+    when(workspace.getConfig()).thenReturn(config);
+    when(workspace.getId()).thenReturn(identity.getWorkspaceId());
+    when(workspace.getAttributes()).thenReturn(new HashMap<>());
+
+    lenient().when(workspaceDao.get(identity.getWorkspaceId())).thenReturn(workspace);
+
+    return workspace;
   }
 
-  @Test
-  public void isAnyRunningReturnsTrueIfThereIsAtLeastOneRunningWorkspace() {
-    setRuntime("workspace1", WorkspaceStatus.STARTING);
+  private WorkspaceImpl mockWorkspaceWithDevfile(RuntimeIdentity identity)
+      throws NotFoundException, ServerException {
+    DevfileImpl devfile = mock(DevfileImpl.class);
 
-    assertTrue(runtimes.isAnyRunning());
+    WorkspaceImpl workspace = mock(WorkspaceImpl.class);
+    lenient().when(workspace.getDevfile()).thenReturn(devfile);
+    lenient().when(workspace.getId()).thenReturn(identity.getWorkspaceId());
+    lenient().when(workspace.getAttributes()).thenReturn(new HashMap<>());
+
+    lenient().when(workspaceDao.get(identity.getWorkspaceId())).thenReturn(workspace);
+
+    WorkspaceConfigImpl convertedConfig = mock(WorkspaceConfigImpl.class);
+    EnvironmentImpl environment = mockEnvironment();
+    lenient()
+        .when(convertedConfig.getEnvironments())
+        .thenReturn(ImmutableMap.of(identity.getEnvName(), environment));
+    lenient().when(devfileConverter.convert(devfile)).thenReturn(convertedConfig);
+
+    return workspace;
   }
 
-  @Test(
-    expectedExceptions = ConflictException.class,
-    expectedExceptionsMessageRegExp =
-        "Start of the workspace 'test-workspace' is rejected by the system, "
-            + "no more workspaces are allowed to start"
-  )
-  public void doesNotAllowToStartWorkspaceIfStartIsRefused() throws Exception {
-    runtimes.refuseWorkspacesStart();
-
-    runtimes.startAsync(newWorkspace("workspace1", "env-name"), "env-name", false);
+  private EnvironmentImpl mockEnvironment() {
+    EnvironmentImpl environment = mock(EnvironmentImpl.class);
+    when(environment.getRecipe())
+        .thenReturn(new RecipeImpl(TEST_ENVIRONMENT_TYPE, "contentType1", "content1", null));
+    return environment;
   }
 
-  private void captureAsyncTaskAndExecuteSynchronously() throws Exception {
-    verify(sharedPool).submit(taskCaptor.capture());
-    taskCaptor.getValue().call();
+  private Runtime asRuntime(TestInternalRuntime internalRuntime) throws InfrastructureException {
+    return new RuntimeImpl(
+        internalRuntime.getActiveEnv(),
+        internalRuntime.getMachines(),
+        internalRuntime.getOwner(),
+        internalRuntime.getCommands(),
+        internalRuntime.getWarnings());
   }
 
-  private void captureAndVerifyRuntimeStateAfterInterruption(
-      Workspace workspace, CompletableFuture<WorkspaceRuntimeImpl> cmpFuture) throws Exception {
-    try {
-      captureAsyncTaskAndExecuteSynchronously();
-    } catch (EnvironmentStartInterruptedException x) {
-      String expectedMessage =
-          "Start of environment 'env-name' in workspace 'workspace' is interrupted";
-      assertEquals(x.getMessage(), expectedMessage);
-      verifyCompletionException(
-          cmpFuture, EnvironmentStartInterruptedException.class, expectedMessage);
+  private static class TestInfrastructure extends RuntimeInfrastructure {
+
+    public TestInfrastructure() {
+      this("test");
     }
-    assertFalse(runtimes.hasRuntime(workspace.getId()));
-  }
 
-  private void verifyCompletionException(
-      Future<?> f, Class<? extends Exception> expectedEx, String expectedMessage) {
-    assertTrue(f.isDone());
-    try {
-      f.get();
-    } catch (ExecutionException execEx) {
-      if (expectedEx.isInstance(execEx.getCause())) {
-        assertEquals(execEx.getCause().getMessage(), expectedMessage);
-      } else {
-        fail(execEx.getMessage(), execEx);
-      }
-    } catch (InterruptedException interruptedEx) {
-      fail(interruptedEx.getMessage(), interruptedEx);
+    public TestInfrastructure(String... types) {
+      super("test", asList(types), null, emptySet());
     }
-  }
 
-  private void verifyEventsSequence(WorkspaceStatusEvent... expected) {
-    Iterator<WorkspaceStatusEvent> it = captureEvents().iterator();
-    for (WorkspaceStatusEvent expEvent : expected) {
-      if (!it.hasNext()) {
-        fail(
-            format(
-                "It is expected to receive the status changed event '%s' -> '%s' "
-                    + "but there are no more events published",
-                expEvent.getPrevStatus(), expEvent.getStatus()));
-      }
-      WorkspaceStatusEvent cur = it.next();
-      if (cur.getPrevStatus() != expEvent.getPrevStatus()
-          || cur.getStatus() != expEvent.getStatus()) {
-        fail(
-            format(
-                "Expected to receive status change '%s' -> '%s', while received '%s' -> '%s'",
-                expEvent.getPrevStatus(),
-                expEvent.getStatus(),
-                cur.getPrevStatus(),
-                cur.getStatus()));
-      }
-      assertEquals(cur, expEvent);
-    }
-    if (it.hasNext()) {
-      WorkspaceStatusEvent next = it.next();
-      fail(
-          format(
-              "No more events expected, but received '%s' -> '%s'",
-              next.getPrevStatus(), next.getStatus()));
+    @Override
+    public RuntimeContext internalPrepare(RuntimeIdentity id, InternalEnvironment environment) {
+      throw new UnsupportedOperationException();
     }
   }
 
-  private static WorkspaceStatusEvent event(
-      String workspaceId,
-      WorkspaceStatus prevStatus,
-      WorkspaceStatus status,
-      EventType eventType,
-      String error) {
-    return DtoFactory.newDto(WorkspaceStatusEvent.class)
-        .withWorkspaceId(workspaceId)
-        .withStatus(status)
-        .withPrevStatus(prevStatus)
-        .withEventType(eventType)
-        .withError(error);
-  }
+  private static class TestInternalRuntime extends InternalRuntime<RuntimeContext> {
 
-  private List<WorkspaceStatusEvent> captureEvents() {
-    verify(eventService, atLeastOnce()).publish(eventCaptor.capture());
-    return eventCaptor.getAllValues();
-  }
+    final Map<String, Machine> machines;
+    final List<? extends Command> commands;
 
-  private void setRuntime(String workspaceId, WorkspaceStatus status) {
-    runtimeStates.put(workspaceId, new RuntimeState(status, null, null, null));
-  }
-
-  private void setRuntime(String workspaceId, WorkspaceStatus status, String envName) {
-    runtimeStates.put(workspaceId, new RuntimeState(status, envName, null, null));
-  }
-
-  private void setRuntime(
-      String workspaceId,
-      WorkspaceStatus status,
-      String envName,
-      Future<WorkspaceRuntimeImpl> startFuture,
-      WorkspaceRuntimes.StartTask startTask) {
-    runtimeStates.put(workspaceId, new RuntimeState(status, envName, startTask, startFuture));
-  }
-
-  private void setNoMachinesForWorkspace(String workspaceId) throws EnvironmentNotRunningException {
-    when(envEngine.getMachines(workspaceId)).thenThrow(new EnvironmentNotRunningException(""));
-  }
-
-  private List<Instance> allowEnvironmentStart(
-      Workspace workspace, String envName, TestAction beforeReturn) throws Exception {
-    Environment environment = workspace.getConfig().getEnvironments().get(envName);
-    ArrayList<Instance> machines = new ArrayList<>(environment.getMachines().size());
-    for (Map.Entry<String, ? extends ExtendedMachine> entry :
-        environment.getMachines().entrySet()) {
-      machines.add(
-          newMachine(
-              workspace.getId(),
-              envName,
-              entry.getKey(),
-              entry.getValue().getAgents().contains("org.eclipse.che.ws-agent")));
+    TestInternalRuntime(
+        RuntimeContext context,
+        Map<String, Machine> machines,
+        List<? extends Command> commands,
+        WorkspaceStatus status) {
+      super(context, null, status);
+      this.commands = commands;
+      this.machines = machines;
     }
-    when(envEngine.start(
-            eq(workspace.getId()),
-            eq(envName),
-            eq(workspace.getConfig().getEnvironments().get(envName)),
-            anyBoolean(),
-            any(),
-            any()))
-        .thenAnswer(
-            invocation -> {
-              if (beforeReturn != null) {
-                beforeReturn.call();
-              }
-              return machines;
-            });
-    return machines;
-  }
 
-  private List<Instance> allowEnvironmentStart(Workspace workspace, String envName)
-      throws Exception {
-    return allowEnvironmentStart(workspace, envName, null);
-  }
+    TestInternalRuntime(
+        RuntimeContext context, Map<String, Machine> machines, WorkspaceStatus status) {
+      this(context, machines, singletonList(createCommand()), status);
+    }
 
-  private void rejectEnvironmentStart(Workspace workspace, String envName, Exception x)
-      throws Exception {
-    when(envEngine.start(
-            eq(workspace.getId()),
-            eq(envName),
-            eq(workspace.getConfig().getEnvironments().get(envName)),
-            anyBoolean(),
-            any(),
-            any()))
-        .thenThrow(x);
-  }
+    TestInternalRuntime(RuntimeContext context, Map<String, Machine> machines) {
+      this(context, machines, WorkspaceStatus.STARTING);
+    }
 
-  private void rejectEnvironmentStop(Workspace workspace, Exception x) throws Exception {
-    doThrow(x).when(envEngine).stop(workspace.getId());
-  }
+    TestInternalRuntime(RuntimeContext context) {
+      this(context, emptyMap());
+    }
 
-  private List<Instance> prepareMachines(String workspaceId, String envName)
-      throws EnvironmentNotRunningException {
-    List<Instance> machines = new ArrayList<>(3);
-    machines.add(newMachine(workspaceId, envName, "machine1", true));
-    machines.add(newMachine(workspaceId, envName, "machine2", false));
-    machines.add(newMachine(workspaceId, envName, "machine3", false));
-    prepareMachines(workspaceId, machines);
-    return machines;
-  }
+    @Override
+    protected Map<String, Machine> getInternalMachines() {
+      return machines;
+    }
 
-  private void prepareMachines(String workspaceId, List<Instance> machines)
-      throws EnvironmentNotRunningException {
-    when(envEngine.getMachines(workspaceId)).thenReturn(machines);
-  }
+    @Override
+    public List<? extends Command> getCommands() throws InfrastructureException {
+      return commands;
+    }
 
-  private Instance newMachine(String workspaceId, String envName, String name, boolean isDev) {
-    MachineImpl machine =
-        MachineImpl.builder()
-            .setConfig(
-                MachineConfigImpl.builder()
-                    .setDev(isDev)
-                    .setName(name)
-                    .setType("docker")
-                    .setSource(new MachineSourceImpl("type"))
-                    .setLimits(new MachineLimitsImpl(1024))
-                    .build())
-            .setWorkspaceId(workspaceId)
-            .setEnvName(envName)
-            .setOwner("owner")
-            .setRuntime(
-                new MachineRuntimeInfoImpl(
-                    Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap()))
-            .setStatus(MachineStatus.RUNNING)
-            .build();
-    return new NoOpMachineInstance(machine);
-  }
+    @Override
+    public Map<String, String> getProperties() {
+      return emptyMap();
+    }
 
-  private WorkspaceImpl newWorkspace(String workspaceId, String envName) {
-    EnvironmentImpl environment = new EnvironmentImpl();
-    Map<String, ExtendedMachineImpl> machines = environment.getMachines();
-    machines.put(
-        "dev",
-        new ExtendedMachineImpl(
-            Arrays.asList(
-                "org.eclipse.che.exec", "org.eclipse.che.terminal", "org.eclipse.che.ws-agent"),
-            Collections.emptyMap(),
-            Collections.emptyMap()));
-    machines.put(
-        "db",
-        new ExtendedMachineImpl(
-            Arrays.asList("org.eclipse.che.exec", "org.eclipse.che.terminal"),
-            Collections.emptyMap(),
-            Collections.emptyMap()));
-    return WorkspaceImpl.builder()
-        .setId(workspaceId)
-        .setTemporary(false)
-        .setConfig(
-            WorkspaceConfigImpl.builder()
-                .setName("test-workspace")
-                .setDescription("this is test workspace")
-                .setDefaultEnv(envName)
-                .setEnvironments(ImmutableMap.of(envName, environment))
-                .build())
-        .build();
-  }
+    @Override
+    protected void internalStop(Map stopOptions) throws InfrastructureException {
+      throw new UnsupportedOperationException();
+    }
 
-  private void shutdownAndWaitPool(ExecutorService pool) throws InterruptedException {
-    pool.shutdownNow();
-    if (!pool.awaitTermination(10, TimeUnit.SECONDS)) {
-      fail("Can't shutdown test pool");
+    @Override
+    protected void internalStart(Map startOptions) throws InfrastructureException {
+      throw new UnsupportedOperationException();
     }
   }
 
-  @FunctionalInterface
-  private interface TestAction {
-    void call() throws Exception;
+  private static CommandImpl createCommand() {
+    return new CommandImpl(NameGenerator.generate("command-", 5), "echo Hello", "custom");
   }
 
-  @DataProvider
-  private static Object[][] allStatuses() {
-    WorkspaceStatus[] values = WorkspaceStatus.values();
-    WorkspaceStatus[][] result = new WorkspaceStatus[values.length][1];
-    for (int i = 0; i < values.length; i++) {
-      result[i][0] = values[i];
-    }
-    return result;
-  }
-
-  @DataProvider
-  private static Object[][] notAllowedToStopStatuses() {
-    return new WorkspaceStatus[][] {{WorkspaceStatus.STOPPING}, {WorkspaceStatus.SNAPSHOTTING}};
+  private static WarningImpl createWarning() {
+    return new WarningImpl(123, "configuration parameter `123` is ignored");
   }
 }

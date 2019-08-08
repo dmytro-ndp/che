@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
+
+import {IParser} from './parser';
 
 /**
  * Simple parser and simple dumper of dockerfiles.
@@ -23,7 +26,7 @@ interface IRecipeLine {
   emptyLine?: boolean;
 }
 
-export class DockerfileParser {
+export class DockerfileParser implements IParser {
   /**
    * RegExp to match the very first instruction to be 'FROM'.
    */
@@ -133,7 +136,7 @@ export class DockerfileParser {
     const uniqueDirectives: string[] = [];
     let counter = 1000;
     let lookingForDirectives = true;
-    let firstInstruction = true;
+    let firstInstructionFound = false;
 
     // set default parsing directive
     this.updateDirectives('escape', this.directiveValues.escape[0]);
@@ -198,10 +201,10 @@ export class DockerfileParser {
       if (this.instructionRE.test(recipeContent)) {
         const [fullMatch, instruction, argument] = this.instructionRE.exec(recipeContent);
 
-        if (firstInstruction && !this.fromRE.test(instruction)) {
+        if (!firstInstructionFound && !this.fromRE.test(instruction)) {
           throw new TypeError('Dockerfile should start with \'FROM\' instruction.');
         }
-        firstInstruction = false;
+        firstInstructionFound = true;
 
         // parse argument
         let results: IRecipeLine[] = this.parseArgument(instruction, argument);
@@ -218,6 +221,11 @@ export class DockerfileParser {
       // got weird line
       const [line, ] = this.splitBySymbolAtIndex(recipeContent, this.getSplitIndex(recipeContent, '\n'));
       throw new TypeError(`Cannot parse recipe from line: ${line}`);
+    }
+
+    // check if recipe contains any dockerfile instruction
+    if (!firstInstructionFound) {
+      throw new TypeError(`Cannot find any dockerfile instruction.`);
     }
 
     return instructions;

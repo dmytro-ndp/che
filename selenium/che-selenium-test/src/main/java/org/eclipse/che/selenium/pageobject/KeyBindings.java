@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -29,7 +30,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 /**
- * @author Morhun Mykola
+ * @author Mykola Morhun
  * @author Andrey Chizhikov
  */
 @Singleton
@@ -44,7 +45,7 @@ public class KeyBindings {
   }
 
   private interface Locators {
-    String KEY_BINDINGS_FORM = "//div[text()='Key Bindings']/ancestor::div[3]";
+    String KEY_BINDINGS_FORM = "//table[@title='Key Bindings']";
     String OK_BUTTON_ID = "keybindings-saveButton-btn";
     String ID_KEY_BY_KEY_BINDINGS = "gwt-debug-projectWizard";
     String SEARCH_INPUT = "//input[@placeholder='Search']";

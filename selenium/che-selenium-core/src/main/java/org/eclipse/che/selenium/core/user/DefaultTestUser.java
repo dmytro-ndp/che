@@ -1,71 +1,48 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.core.user;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
+import java.io.IOException;
+import org.eclipse.che.api.core.BadRequestException;
+import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.selenium.core.client.TestAuthServiceClient;
-import org.eclipse.che.selenium.core.client.TestUserServiceClient;
-import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
+import org.eclipse.che.selenium.core.client.TestUserServiceClientFactory;
+import org.eclipse.che.selenium.core.provider.RemovableUserProvider;
 
 /**
- * Default {@link TestUser} that will be created before all tests and will be deleted after them.
- * All tests share the same default user.
+ * Represents default test user in a test environment.
  *
- * <p>To have move users per tests see {@link InjectTestUser}.
- *
- * @author Anatolii Bazko
+ * @author Dmytro Nochevnov
  */
-@Singleton
-public class DefaultTestUser implements TestUser {
+public class DefaultTestUser extends TestUserImpl {
 
-  private final TestUser testUser;
-
-  @Inject
+  /** To instantiate default test user with specific name, e-mail, password and offline token. */
+  @AssistedInject
   public DefaultTestUser(
-      TestUserServiceClient testUserServiceClient,
-      TestWorkspaceServiceClient workspaceServiceClient,
-      TestAuthServiceClient authServiceClient)
-      throws Exception {
-    this.testUser =
-        new TestUserImpl(testUserServiceClient, workspaceServiceClient, authServiceClient);
+      TestUserServiceClientFactory testUserServiceClientFactory,
+      TestAuthServiceClient authServiceClient,
+      @Assisted RemovableUserProvider testUserProvider,
+      @Assisted("name") String name,
+      @Assisted("email") String email,
+      @Assisted("password") String password)
+      throws NotFoundException, ServerException, BadRequestException {
+    super(testUserServiceClientFactory, authServiceClient, testUserProvider, name, email, password);
   }
 
   @Override
-  public String getEmail() {
-    return testUser.getEmail();
-  }
-
-  @Override
-  public String getPassword() {
-    return testUser.getPassword();
-  }
-
-  @Override
-  public String getAuthToken() {
-    return testUser.getAuthToken();
-  }
-
-  @Override
-  public String getName() {
-    return testUser.getName();
-  }
-
-  @Override
-  public String getId() {
-    return testUser.getId();
-  }
-
-  @Override
-  public void delete() {
-    testUser.delete();
+  public void delete() throws IOException {
+    super.delete();
   }
 }

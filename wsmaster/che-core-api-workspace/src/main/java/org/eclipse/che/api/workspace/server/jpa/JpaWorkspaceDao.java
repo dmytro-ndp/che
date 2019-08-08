@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,6 +15,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
+import static org.eclipse.che.api.core.Pages.iterate;
 
 import com.google.inject.persist.Transactional;
 import java.util.List;
@@ -29,14 +31,15 @@ import javax.persistence.NoResultException;
 import org.eclipse.che.account.event.BeforeAccountRemovedEvent;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.Page;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.workspace.server.WorkspaceManager;
 import org.eclipse.che.api.workspace.server.event.BeforeWorkspaceRemovedEvent;
-import org.eclipse.che.api.workspace.server.event.WorkspaceRemovedEvent;
 import org.eclipse.che.api.workspace.server.model.impl.ProjectConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
 import org.eclipse.che.api.workspace.server.spi.WorkspaceDao;
+import org.eclipse.che.api.workspace.shared.event.WorkspaceRemovedEvent;
 import org.eclipse.che.core.db.cascade.CascadeEventSubscriber;
 import org.eclipse.che.core.db.jpa.DuplicateKeyException;
 
@@ -60,7 +63,7 @@ public class JpaWorkspaceDao implements WorkspaceDao {
       throw new ConflictException(
           format(
               "Workspace with id '%s' or name '%s' in namespace '%s' already exists",
-              workspace.getId(), workspace.getConfig().getName(), workspace.getNamespace()));
+              workspace.getId(), workspace.getName(), workspace.getNamespace()));
     } catch (RuntimeException x) {
       throw new ServerException(x.getMessage(), x);
     }
@@ -77,22 +80,24 @@ public class JpaWorkspaceDao implements WorkspaceDao {
       throw new ConflictException(
           format(
               "Workspace with name '%s' in namespace '%s' already exists",
-              update.getConfig().getName(), update.getNamespace()));
+              update.getName(), update.getNamespace()));
     } catch (RuntimeException x) {
       throw new ServerException(x.getMessage(), x);
     }
   }
 
   @Override
-  public void remove(String id) throws ServerException {
+  public Optional<WorkspaceImpl> remove(String id) throws ServerException {
     requireNonNull(id, "Required non-null id");
+    Optional<WorkspaceImpl> workspaceOpt;
     try {
-      Optional<WorkspaceImpl> workspaceOpt = doRemove(id);
+      workspaceOpt = doRemove(id);
       workspaceOpt.ifPresent(
           workspace -> eventService.publish(new WorkspaceRemovedEvent(workspace)));
     } catch (RuntimeException x) {
       throw new ServerException(x.getLocalizedMessage(), x);
     }
+    return workspaceOpt;
   }
 
   @Override
@@ -134,17 +139,27 @@ public class JpaWorkspaceDao implements WorkspaceDao {
 
   @Override
   @Transactional
-  public List<WorkspaceImpl> getByNamespace(String namespace) throws ServerException {
+  public Page<WorkspaceImpl> getByNamespace(String namespace, int maxItems, long skipCount)
+      throws ServerException {
     requireNonNull(namespace, "Required non-null namespace");
     try {
-      return managerProvider
-          .get()
-          .createNamedQuery("Workspace.getByNamespace", WorkspaceImpl.class)
-          .setParameter("namespace", namespace)
-          .getResultList()
-          .stream()
-          .map(WorkspaceImpl::new)
-          .collect(Collectors.toList());
+      final EntityManager manager = managerProvider.get();
+      final List<WorkspaceImpl> list =
+          manager
+              .createNamedQuery("Workspace.getByNamespace", WorkspaceImpl.class)
+              .setParameter("namespace", namespace)
+              .setMaxResults(maxItems)
+              .setFirstResult((int) skipCount)
+              .getResultList()
+              .stream()
+              .map(WorkspaceImpl::new)
+              .collect(Collectors.toList());
+      final long count =
+          manager
+              .createNamedQuery("Workspace.getByNamespaceCount", Long.class)
+              .setParameter("namespace", namespace)
+              .getSingleResult();
+      return new Page<>(list, skipCount, maxItems, count);
     } catch (RuntimeException x) {
       throw new ServerException(x.getLocalizedMessage(), x);
     }
@@ -152,15 +167,25 @@ public class JpaWorkspaceDao implements WorkspaceDao {
 
   @Override
   @Transactional
-  public List<WorkspaceImpl> getWorkspaces(String userId) throws ServerException {
+  public Page<WorkspaceImpl> getWorkspaces(String userId, int maxItems, long skipCount)
+      throws ServerException {
     try {
-      return managerProvider
-          .get()
-          .createNamedQuery("Workspace.getAll", WorkspaceImpl.class)
-          .getResultList()
-          .stream()
-          .map(WorkspaceImpl::new)
-          .collect(Collectors.toList());
+      final List<WorkspaceImpl> list =
+          managerProvider
+              .get()
+              .createNamedQuery("Workspace.getAll", WorkspaceImpl.class)
+              .setMaxResults(maxItems)
+              .setFirstResult((int) skipCount)
+              .getResultList()
+              .stream()
+              .map(WorkspaceImpl::new)
+              .collect(Collectors.toList());
+      final long count =
+          managerProvider
+              .get()
+              .createNamedQuery("Workspace.getAllCount", Long.class)
+              .getSingleResult();
+      return new Page<>(list, skipCount, maxItems, count);
     } catch (RuntimeException x) {
       throw new ServerException(x.getLocalizedMessage(), x);
     }
@@ -168,23 +193,31 @@ public class JpaWorkspaceDao implements WorkspaceDao {
 
   @Override
   @Transactional
-  public List<WorkspaceImpl> getWorkspaces(boolean isTemporary, int skipCount, int maxItems)
+  public Page<WorkspaceImpl> getWorkspaces(boolean isTemporary, int maxItems, long skipCount)
       throws ServerException {
     checkArgument(maxItems >= 0, "The number of items to return can't be negative.");
     checkArgument(
         skipCount >= 0,
         "The number of items to skip can't be negative or greater than " + Integer.MAX_VALUE);
     try {
-      return managerProvider
-          .get()
-          .createNamedQuery("Workspace.getByTemporary", WorkspaceImpl.class)
-          .setParameter("temporary", isTemporary)
-          .setMaxResults(maxItems)
-          .setFirstResult(skipCount)
-          .getResultList()
-          .stream()
-          .map(WorkspaceImpl::new)
-          .collect(toList());
+      final List<WorkspaceImpl> list =
+          managerProvider
+              .get()
+              .createNamedQuery("Workspace.getByTemporary", WorkspaceImpl.class)
+              .setParameter("temporary", isTemporary)
+              .setMaxResults(maxItems)
+              .setFirstResult((int) skipCount)
+              .getResultList()
+              .stream()
+              .map(WorkspaceImpl::new)
+              .collect(toList());
+      final long count =
+          managerProvider
+              .get()
+              .createNamedQuery("Workspace.getByTemporaryCount", Long.class)
+              .setParameter("temporary", isTemporary)
+              .getSingleResult();
+      return new Page<>(list, skipCount, maxItems, count);
     } catch (RuntimeException x) {
       throw new ServerException(x.getLocalizedMessage(), x);
     }
@@ -249,31 +282,12 @@ public class JpaWorkspaceDao implements WorkspaceDao {
     @Override
     public void onCascadeEvent(BeforeAccountRemovedEvent event) throws Exception {
       for (WorkspaceImpl workspace :
-          workspaceManager.getByNamespace(event.getAccount().getName(), false)) {
+          iterate(
+              (maxItems, skipCount) ->
+                  workspaceManager.getByNamespace(
+                      event.getAccount().getName(), false, maxItems, skipCount))) {
         workspaceManager.removeWorkspace(workspace.getId());
       }
-    }
-  }
-
-  @Singleton
-  public static class RemoveSnapshotsBeforeWorkspaceRemovedEventSubscriber
-      extends CascadeEventSubscriber<BeforeWorkspaceRemovedEvent> {
-    @Inject private EventService eventService;
-    @Inject private WorkspaceManager workspaceManager;
-
-    @PostConstruct
-    public void subscribe() {
-      eventService.subscribe(this, BeforeWorkspaceRemovedEvent.class);
-    }
-
-    @PreDestroy
-    public void unsubscribe() {
-      eventService.unsubscribe(this, BeforeWorkspaceRemovedEvent.class);
-    }
-
-    @Override
-    public void onCascadeEvent(BeforeWorkspaceRemovedEvent event) throws Exception {
-      workspaceManager.removeSnapshots(event.getWorkspace().getId());
     }
   }
 }

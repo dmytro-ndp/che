@@ -1,14 +1,19 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
+
+export interface ICheLearmMoreAttributes extends ng.IAttributes {
+  $cheLearnMoreTemplate: any;
+}
 
 /**
  * @ngdoc directive
@@ -22,38 +27,28 @@
  *
  * @author Florent Benoit
  */
-export class CheLearnMore {
+export class CheLearnMore implements ng.IDirective {
 
-  /**
-   * Default constructor that is using resource
-   * @ngInject for Dependency injection
-   */
-  constructor() {
-    this.restrict = 'E';
-    //this.replace= true;
-    //this.transclude= true;
-    this.bindToController = true;
+  restrict = 'E';
+  bindToController = true;
 
+  controller = 'CheLearnMoreCtrl';
+  controllerAs = 'cheLearnMoreCtrl';
 
-    this.controller = 'CheLearnMoreCtrl';
-    this.controllerAs = 'cheLearnMoreCtrl';
-
-    this.scope = {
-      title: '@cheTitle'
-    };
-  }
-
+  scope = {
+    title: '@cheTitle'
+  };
 
   /**
    * Template for the current toolbar
-   * @param element
-   * @param attrs
+   * @param $element
+   * @param $attrs
    * @returns {string} the template
    */
-  template(element, attrs) {
+  template($element: ng.IAugmentedJQuery, $attrs: ICheLearmMoreAttributes) {
 
     // keep the current value into the attributes
-    attrs['$cheLearnMoreTemplate'] = element.html();
+    $attrs.$cheLearnMoreTemplate = $element.html();
 
     var template = '<md-card class="che-learn-more-panel" md-theme="default">'
       + '<div layout="row" class="che-learn-more-titlebox" layout-align="start center">'
@@ -74,6 +69,5 @@ export class CheLearnMore {
       + '</che-learn-more-wrapper></md-card-content></md-card>';
     return template;
   }
-
 
 }

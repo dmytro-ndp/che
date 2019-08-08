@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,13 +18,17 @@
  * @author Florent Benoit
  */
 export class FactoryCommandController {
+
+  static $inject = ['$mdDialog'];
+
   private $mdDialog: ng.material.IDialogService;
   private factoryObject: any;
   private onChange: Function;
+  private commandLine: string;
+  private commandLineName: string;
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
   constructor($mdDialog: ng.material.IDialogService) {
     this.$mdDialog = $mdDialog;
@@ -31,7 +36,6 @@ export class FactoryCommandController {
 
   /**
    * User clicked on the add button to add a new command
-   * @param $event
    */
   addCommand(): void {
     if (!this.factoryObject) {
@@ -46,12 +50,12 @@ export class FactoryCommandController {
       this.factoryObject.workspace.commands = [];
     }
     let command = {
-      "commandLine": this.commandLine,
-      "name": this.commandLineName,
-      "attributes": {
-        "previewUrl": ""
+      'commandLine': this.commandLine,
+      'name': this.commandLineName,
+      'attributes': {
+        'previewUrl': ''
       },
-      "type": "custom"
+      'type': 'custom'
     };
 
     this.factoryObject.workspace.commands.push(command);
@@ -61,7 +65,7 @@ export class FactoryCommandController {
 
   /**
    * Remove command based on the provided index
-   * @param index the index in the array of workspace commands
+   * @param {number} index the index in the array of workspace commands
    */
   removeCommand(index: number): void {
     this.factoryObject.workspace.commands.splice(index, 1);
@@ -71,10 +75,10 @@ export class FactoryCommandController {
 
   /**
    * Edit the command based on the provided index
-   * @param $event the mouse event
-   * @param index the index in the array of workspace commands
+   * @param {MouseEvent} $event the mouse event
+   * @param {number} index the index in the array of workspace commands
    */
-  editCommand($event: any, index: number): void {
+  editCommand($event: MouseEvent, index: number): void {
     this.$mdDialog.show({
       targetEvent: $event,
       controller: 'FactoryCommandDialogEditController',
@@ -93,10 +97,10 @@ export class FactoryCommandController {
   /**
    * Callback on edit action.
    *
-   * @param index commands index
-   * @param newValue value to update with
+   * @param {number} index commands index
+   * @param {string} newValue value to update with
    */
-  callbackEditAction(index: number, newValue: string) {
+  callbackEditAction(index: number, newValue: string): void {
     this.factoryObject.workspace.commands[index].commandLine = newValue;
 
     this.onChange();

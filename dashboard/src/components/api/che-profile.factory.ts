@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,8 @@ interface IProfileResource<T> extends ng.resource.IResourceClass<T> {
  */
 export class CheProfile {
 
+  static $inject = ['$q', '$resource', '$http'];
+
   /**
    * Angular Promise service.
    */
@@ -37,11 +40,10 @@ export class CheProfile {
 
   private profile: che.IProfile;
   private profileIdMap: Map<string, che.IProfile>;
-  private remoteProfileAPI: IProfileResource<che.IProfile>;
+  private remoteProfileAPI: any;
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($q: ng.IQService, $resource: ng.resource.IResourceService, $http: ng.IHttpService) {
     this.$q = $q;
@@ -51,7 +53,7 @@ export class CheProfile {
     this.$http = $http;
 
     // remote call
-    this.remoteProfileAPI = <IProfileResource<che.IProfile>>this.$resource('/api/profile', {}, {
+    this.remoteProfileAPI = this.$resource('/api/profile', {}, {
       getById: {method: 'GET', url: '/api/profile/:userId'},
       setAttributes: {method: 'PUT', url: '/api/profile/attributes'},
       setAttributesById: {method: 'PUT', url: '/api/profile/:userId/attributes'}
@@ -79,15 +81,15 @@ export class CheProfile {
    * Gets the profile
    * @return profile
    */
-  getProfile() {
+  getProfile(): che.IProfile {
     return this.profile;
   }
 
   /**
    * Gets the profile data
-   * @returns {ng.IPromise<che.IProfile>} the promise
+   * @returns profile
    */
-  fetchProfile(): ng.IPromise<che.IProfile> {
+  fetchProfile(): che.IProfile {
     if (this.profile && !this.profile.$resolved) {
       return this.profile;
     }
@@ -108,13 +110,14 @@ export class CheProfile {
       if (error && error.status === 304) {
         return this.profile;
       }
-      return this.$q.reject(error);
+      return null;
     });
   }
 
   /**
    * Set the profile attributes data
-   * @param attributes {che.IProfileAttributes}
+   * @param {che.IProfileAttributes} attributes
+   * @param {string=} userId
    * @returns {ng.IPromise<any>} the promise
    */
   setAttributes(attributes: che.IProfileAttributes, userId?: string): ng.IPromise<any> {
@@ -146,7 +149,7 @@ export class CheProfile {
       if (error && error.status === 304) {
         return this.profileIdMap.get(userId);
       }
-      return this.$q.reject(error);
+      return null;
     });
   }
 

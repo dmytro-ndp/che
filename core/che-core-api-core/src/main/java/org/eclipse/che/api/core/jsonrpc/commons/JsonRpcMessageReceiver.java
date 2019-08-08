@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,6 +13,7 @@ package org.eclipse.che.api.core.jsonrpc.commons;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.eclipse.che.api.core.websocket.impl.WebsocketIdService.SEPARATOR;
 import static org.slf4j.LoggerFactory.getLogger;
 
 import java.util.List;
@@ -54,24 +56,26 @@ public class JsonRpcMessageReceiver implements WebSocketMessageReceiver {
   }
 
   @Override
-  public void receive(String endpointId, String message) {
-    checkNotNull(endpointId, "Endpoint ID must not be null");
-    checkArgument(!endpointId.isEmpty(), "Endpoint ID name must not be empty");
+  public void receive(String combinedEndpointId, String message) {
+    checkNotNull(combinedEndpointId, "Endpoint ID must not be null");
+    checkArgument(!combinedEndpointId.isEmpty(), "Endpoint ID name must not be empty");
     checkNotNull(message, "Message must not be null");
     checkArgument(!message.isEmpty(), "Message must not be empty");
 
-    LOGGER.debug("Receiving message: " + message + ", from endpoint: " + endpointId);
+    LOGGER.debug("Receiving message: {}, from endpoint: {}", message, combinedEndpointId);
     if (!jsonRpcQualifier.isValidJson(message)) {
       String error = "An error occurred on the server while parsing the JSON text";
-      errorTransmitter.transmit(endpointId, new JsonRpcException(-32700, error));
+      errorTransmitter.transmit(combinedEndpointId, new JsonRpcException(-32700, error));
     }
 
     List<String> messages = jsonRpcUnmarshaller.unmarshalArray(message);
     for (String innerMessage : messages) {
       if (jsonRpcQualifier.isJsonRpcRequest(innerMessage)) {
-        requestProcessor.process(() -> processRequest(endpointId, innerMessage));
+        String endpointId = combinedEndpointId.split(SEPARATOR)[1];
+        ProcessRequestTask task = new ProcessRequestTask(combinedEndpointId, innerMessage);
+        requestProcessor.process(endpointId, task);
       } else if (jsonRpcQualifier.isJsonRpcResponse(innerMessage)) {
-        processResponse(endpointId, innerMessage);
+        processResponse(combinedEndpointId, innerMessage);
       } else {
         processError();
       }
@@ -90,18 +94,35 @@ public class JsonRpcMessageReceiver implements WebSocketMessageReceiver {
     responseDispatcher.dispatch(endpointId, response);
   }
 
-  private void processRequest(String endpointId, String innerMessage) {
-    JsonRpcRequest request = null;
-    try {
-      request = jsonRpcUnmarshaller.unmarshalRequest(innerMessage);
-      requestDispatcher.dispatch(endpointId, request);
-    } catch (JsonRpcException e) {
-      if (request == null || request.getId() == null) {
-        errorTransmitter.transmit(endpointId, e);
-      } else {
-        errorTransmitter.transmit(
-            endpointId, new JsonRpcException(e.getCode(), e.getMessage(), request.getId()));
+  private class ProcessRequestTask implements Runnable {
+
+    private final String endpointId;
+    private final String innerMessage;
+
+    public ProcessRequestTask(String endpointId, String innerMessage) {
+      this.endpointId = endpointId;
+      this.innerMessage = innerMessage;
+    }
+
+    @Override
+    public void run() {
+      JsonRpcRequest request = null;
+      try {
+        request = jsonRpcUnmarshaller.unmarshalRequest(innerMessage);
+        requestDispatcher.dispatch(endpointId, request);
+      } catch (JsonRpcException e) {
+        if (request == null || request.getId() == null) {
+          errorTransmitter.transmit(endpointId, e);
+        } else {
+          errorTransmitter.transmit(
+              endpointId, new JsonRpcException(e.getCode(), e.getMessage(), request.getId()));
+        }
       }
+    }
+
+    @Override
+    public String toString() {
+      return "JsonRPC request `" + innerMessage + "` for " + endpointId;
     }
   }
 }

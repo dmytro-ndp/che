@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -140,7 +141,8 @@ public final class HttpServletProxyResponse implements HttpOutputMessage {
     @Override
     public void close() throws IOException {
       // Define variable which is unused in the case of correctly closed resources
-      // BTW it may be simplified with JDK9 see https://blogs.oracle.com/darcy/entry/concise_twr_jdk9
+      // BTW it may be simplified with JDK9 see
+      // https://blogs.oracle.com/darcy/entry/concise_twr_jdk9
       try (@SuppressWarnings("unused")
           Writer writer = this.writer) {
         flush();

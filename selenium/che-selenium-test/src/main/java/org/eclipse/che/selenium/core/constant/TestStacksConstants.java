@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -25,13 +26,14 @@ public enum TestStacksConstants {
   BITNAMI_SWIFT("bitnami-swift", "Bitnami Swift"),
   CPP("cpp-default", "C++"),
   DOTNET("dotnet-default", ".NET"),
+  ECLIPSE_CHE("che-in-che", "Eclipse Che"),
   NODE("node-default", "Node"),
   PHP("php-default", "PHP"),
   PYTHON("python-default", "Python"),
   RAILS("rails-default", "Rails");
 
-  private String id;
-  private String name;
+  private final String id;
+  private final String name;
 
   TestStacksConstants(String id, String name) {
     this.id = id;

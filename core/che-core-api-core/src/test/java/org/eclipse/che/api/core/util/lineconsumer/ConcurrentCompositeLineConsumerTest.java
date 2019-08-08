@@ -1,17 +1,18 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.core.util.lineconsumer;
 
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -32,6 +33,8 @@ import org.eclipse.che.commons.test.mockito.answer.WaitingAnswer;
 import org.mockito.Mock;
 import org.mockito.exceptions.base.MockitoException;
 import org.mockito.internal.invocation.InvocationMatcher;
+import org.mockito.internal.verification.VerificationModeFactory;
+import org.mockito.internal.verification.api.VerificationData;
 import org.mockito.invocation.Invocation;
 import org.mockito.testng.MockitoTestNGListener;
 import org.mockito.verification.VerificationMode;
@@ -260,8 +263,10 @@ public class ConcurrentCompositeLineConsumerTest {
    * verify(someMock, last()).someMethod();
    * </code></pre>
    */
-  private static VerificationMode last() {
-    return (verificationData) -> {
+  public static class Last implements VerificationMode {
+    public Last() {}
+
+    public void verify(VerificationData verificationData) {
       List<Invocation> invocations = verificationData.getAllInvocations();
       InvocationMatcher invocationMatcher = verificationData.getWanted();
 
@@ -276,6 +281,14 @@ public class ConcurrentCompositeLineConsumerTest {
       if (!invocationMatcher.matches(invocation)) {
         throw new MockitoException("\nWanted but not invoked:\n" + invocationMatcher);
       }
-    };
+    }
+
+    public VerificationMode description(String description) {
+      return VerificationModeFactory.description(this, description);
+    }
+  }
+
+  public static VerificationMode last() {
+    return new Last();
   }
 }

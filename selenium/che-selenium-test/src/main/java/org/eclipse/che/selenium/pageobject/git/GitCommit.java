@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,6 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
@@ -45,7 +47,7 @@ public class GitCommit {
     String BRANCHES_DROPDOWN =
         "//span[@id='gwt-debug-push-after-commit-check-box']/following-sibling::select";
     String TREE_ITEM_CHECK_BOX =
-        "//div[@id='gwt-debug-git-compare-changed_files']"
+        "//div[@id='gwt-debug-git-commit-changed-files']"
             + "//div[text()='%s']/ancestor::div[1]/preceding-sibling::span";
   }
 
@@ -74,6 +76,14 @@ public class GitCommit {
   public void waitMainFormCommitIsClosed() {
     new WebDriverWait(seleniumWebDriver, 5)
         .until(ExpectedConditions.invisibilityOfElementLocated(By.id(Locators.MAIN_FORM_COMMIT)));
+  }
+
+  public boolean isWidgetOpened() {
+    try {
+      return btnCancel.isDisplayed();
+    } catch (NoSuchElementException ex) {
+      return false;
+    }
   }
 
   public void typeCommitMsg(String text) {
@@ -137,6 +147,24 @@ public class GitCommit {
         .until(
             ExpectedConditions.elementToBeSelected(
                 (By.xpath(String.format(Locators.TREE_ITEM_CHECK_BOX + "//input", itemName)))));
+  }
+
+  /**
+   * Wait for item check-box in the 'Git changed files tree panel' to be indeterminate.
+   *
+   * @param itemName name of the item
+   */
+  public void waitItemCheckBoxToBeIndeterminate(String itemName) {
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(
+            (ExpectedCondition<Boolean>)
+                webDriver ->
+                    seleniumWebDriver
+                        .findElement(
+                            By.xpath(
+                                String.format(Locators.TREE_ITEM_CHECK_BOX + "//input", itemName)))
+                        .getAttribute("id")
+                        .endsWith("indeterminate"));
   }
 
   /**

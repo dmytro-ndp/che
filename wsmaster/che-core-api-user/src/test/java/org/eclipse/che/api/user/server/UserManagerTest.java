@@ -1,19 +1,21 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.user.server;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyMapOf;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMapOf;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -71,7 +73,8 @@ public class UserManagerTest {
         new UserManager(
             userDao, profileDao, preferencesDao, eventService, new String[] {"reserved"});
 
-    when(eventService.publish(any()))
+    lenient()
+        .when(eventService.publish(any()))
         .thenAnswer(
             invocationOnMock -> {
               Object arg = invocationOnMock.getArguments()[0];
@@ -84,7 +87,7 @@ public class UserManagerTest {
   }
 
   @Test
-  public void shouldCreateProfileAndPreferencesOnUserCreation() throws Exception {
+  public void shouldCreateAccountAndProfileAndPreferencesOnUserCreation() throws Exception {
     final UserImpl user = new UserImpl(null, "test@email.com", "testName", null, null);
 
     manager.create(user, false);
@@ -137,13 +140,15 @@ public class UserManagerTest {
 
   @Test
   public void shouldUpdateUser() throws Exception {
-    final User user =
+    final UserImpl user =
         new UserImpl(
             "identifier", "test@email.com", "testName", "password", Collections.emptyList());
+    when(manager.getById(user.getId())).thenReturn(user);
+    UserImpl user2 = new UserImpl(user);
+    user2.setName("testName2");
+    manager.update(user2);
 
-    manager.update(user);
-
-    verify(userDao).update(new UserImpl(user));
+    verify(userDao).update(new UserImpl(user2));
   }
 
   @Test(expectedExceptions = NullPointerException.class)

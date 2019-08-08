@@ -1,20 +1,20 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
-import {CheWorkspace} from '../../../components/api/che-workspace.factory';
+import {CheWorkspace} from '../../../components/api/workspace/che-workspace.factory';
 import {CheAPIBuilder} from '../../../components/api/builder/che-api-builder.factory';
 import {CheHttpBackend} from '../../../components/api/test/che-http-backend';
 import IdeSvc from '../../ide/ide.service';
 import {CheBranding} from '../../../components/branding/che-branding.factory';
-
 
 /**
  * Test of the NavbarRecentWorkspacesController
@@ -67,7 +67,7 @@ describe('NavbarRecentWorkspacesController', () => {
       let wrkspName = 'testName' + i;
       let wrkspCreateDate = new Date(2001, 1, 1, i, 1).toString();
       let wrkspUpdateDate = new Date(2001, 1, 1, i, 2).toString();
-      let wrkspAttr = {'created': Date.parse(wrkspCreateDate), 'updated': Date.parse(wrkspUpdateDate)};
+      let wrkspAttr = <che.IWorkspaceAttributes>{'created': Date.parse(wrkspCreateDate), 'updated': Date.parse(wrkspUpdateDate)};
       let workspace = apiBuilder.getWorkspaceBuilder().withId(wrkspId).withAttributes(wrkspAttr).withName(wrkspName).build();
       workspaces.push(workspace);
     }

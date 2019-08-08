@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.pageobject.intelligent;
 
+import static java.lang.String.format;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
 
 import com.google.inject.Inject;
@@ -65,7 +67,7 @@ public class CommandsPalette {
     static final String COMMAND_PALETTE_BUTTON =
         "//div[@id='gwt-debug-button-open_command_palette']";
     static final String CLOSE_COMMAND_PALETTE =
-        "//div[contains(text(), 'Commands Palette')]//parent::div//parent::div//div[2]";
+        "//table[@title='Commands Palette']/tbody/tr[1]/td/table/tbody/tr/td[2]//*[local-name() = 'svg']";
     static final String SEARCH_FIELD = "//input[@id='gwt-debug-commands_palette-filter']";
     static final String COMMANDS_LIST =
         "//div[@id = 'gwt-debug-commands_palette']//div[contains(@id,'gwt-uid')]";
@@ -114,7 +116,7 @@ public class CommandsPalette {
     loader.waitOnClosed();
   }
 
-  //TODO Get a commands list from the CommandsPalette
+  // TODO Get a commands list from the CommandsPalette
   private ArrayList commandsList() {
     ArrayList list = new ArrayList();
     list = (ArrayList) seleniumWebDriver.findElements(By.xpath(Locators.COMMANDS_LIST));
@@ -143,13 +145,13 @@ public class CommandsPalette {
   public void commandIsExists(String commandName) {
     redrawUiElementTimeout.until(
         ExpectedConditions.visibilityOfElementLocated(
-            By.xpath(String.format(Locators.COMMANDS, commandName))));
+            By.xpath(format(Locators.COMMANDS, commandName))));
   }
 
   public void commandIsNotExists(String commandName) {
     redrawUiElementTimeout.until(
         ExpectedConditions.invisibilityOfElementLocated(
-            By.xpath(String.format(Locators.COMMANDS, commandName))));
+            By.xpath(format(Locators.COMMANDS, commandName))));
   }
 
   /**
@@ -158,11 +160,13 @@ public class CommandsPalette {
    * @param commandName name of the command
    */
   public void startCommandByDoubleClick(String commandName) {
-    actions
-        .doubleClick(
-            seleniumWebDriver.findElement(By.xpath(String.format(Locators.COMMANDS, commandName))))
-        .build()
-        .perform();
+    String locatorToCurrentCommand = format(Locators.COMMANDS, commandName);
+    WebElement currentCommand =
+        redrawUiElementTimeout.until(
+            ExpectedConditions.visibilityOfElementLocated(By.xpath(locatorToCurrentCommand)));
+    actions.doubleClick(currentCommand).perform();
+    redrawUiElementTimeout.until(
+        ExpectedConditions.invisibilityOfElementLocated(By.xpath(locatorToCurrentCommand)));
   }
 
   /**
@@ -171,8 +175,17 @@ public class CommandsPalette {
    * @param commandName name of the command
    */
   public void startCommandByEnterKey(String commandName) {
-    seleniumWebDriver.findElement(By.xpath(String.format(Locators.COMMANDS, commandName))).click();
-    actionsFactory.createAction(seleniumWebDriver).sendKeys(Keys.ENTER.toString()).perform();
+    String locatorToCurrentCommand = format(Locators.COMMANDS, commandName);
+    WebElement currentCommand =
+        redrawUiElementTimeout.until(
+            ExpectedConditions.visibilityOfElementLocated(By.xpath(locatorToCurrentCommand)));
+    seleniumWebDriver.findElement(By.xpath(locatorToCurrentCommand)).click();
+    actionsFactory
+        .createAction(seleniumWebDriver)
+        .sendKeys(currentCommand, Keys.ENTER.toString())
+        .perform();
+    redrawUiElementTimeout.until(
+        ExpectedConditions.invisibilityOfElementLocated(By.xpath(locatorToCurrentCommand)));
   }
 
   /**

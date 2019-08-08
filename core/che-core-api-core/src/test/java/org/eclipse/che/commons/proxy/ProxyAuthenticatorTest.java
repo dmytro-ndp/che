@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -34,38 +35,38 @@ public class ProxyAuthenticatorTest {
 
   @Test
   public void shouldInitHttpsProxyAuthenticator() throws Exception {
-    //when
+    // when
     ProxyAuthenticator.initAuthenticator(HTTPS_URL);
     PasswordAuthentication testAuthentication =
         Authenticator.requestPasswordAuthentication(null, 0, null, null, null);
 
-    //then
+    // then
     assertEquals(testAuthentication.getUserName(), "user2");
     assertEquals(String.valueOf(testAuthentication.getPassword()), "paswd2");
 
-    //when
+    // when
     ProxyAuthenticator.resetAuthenticator();
 
-    //then
+    // then
     testAuthentication = Authenticator.requestPasswordAuthentication(null, 0, null, null, null);
     assertEquals(testAuthentication, null);
   }
 
   @Test
   public void shouldInitHttpProxyAuthenticator() throws Exception {
-    //when
+    // when
     ProxyAuthenticator.initAuthenticator(HTTP_URL);
 
-    //then
+    // then
     PasswordAuthentication testAuthentication =
         Authenticator.requestPasswordAuthentication(null, 0, null, null, null);
     assertEquals(testAuthentication.getUserName(), "user1");
     assertEquals(String.valueOf(testAuthentication.getPassword()), "paswd1");
 
-    //when
+    // when
     ProxyAuthenticator.resetAuthenticator();
 
-    //then
+    // then
     testAuthentication = Authenticator.requestPasswordAuthentication(null, 0, null, null, null);
     assertEquals(testAuthentication, null);
   }

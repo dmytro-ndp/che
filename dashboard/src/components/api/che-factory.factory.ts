@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -30,9 +31,12 @@ const DEFAULT_MAX_ITEMS = 15;
  * @author Oleksii Orel
  */
 export class CheFactory {
+
+  static $inject = ['$resource', '$q', 'lodash', 'cheUser'];
+
   private $resource: ng.resource.IResourceService;
   private $q: ng.IQService;
-  private lodash: _.LoDashStatic;
+  private lodash: any;
 
   private remoteFactoryAPI: IFactoriesResource<any>;
 
@@ -48,9 +52,8 @@ export class CheFactory {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($resource: ng.resource.IResourceService, $q: ng.IQService, lodash: _.LoDashStatic, cheUser: CheUser) {
+  constructor($resource: ng.resource.IResourceService, $q: ng.IQService, lodash: any, cheUser: CheUser) {
     // keep resource
     this.$resource = $resource;
     this.cheUser = cheUser;
@@ -406,7 +409,7 @@ export class CheFactory {
    * @return the factory content
    */
   getFactoryContentFromWorkspace(workspace: che.IWorkspace): any {
-    return this.factoryContentsByWorkspaceId.get(workspace.workspaceId);
+    return this.factoryContentsByWorkspaceId.get(workspace.id);
   }
 
   /**
@@ -530,6 +533,17 @@ export class CheFactory {
    */
   getFactoryById(factoryId: string): che.IFactory {
     return this.factoriesById.get(factoryId);
+  }
+
+  /**
+   * Get the factory by factoryName and userId
+   * @param factoryName {string} the factory name
+   * @param userId {string} the user ID
+   * @returns factory {che.IFactory}
+   */
+  getFactoryByName(factoryName: string, userId: string): che.IFactory {
+    const key = `${userId}:${factoryName}`;
+    return this.factoriesByName.get(key);
   }
 
   /**

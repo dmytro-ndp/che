@@ -1,17 +1,21 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
-import {CheWorkspace} from '../../../components/api/che-workspace.factory';
+import {CheWorkspace} from '../../../components/api/workspace/che-workspace.factory';
 import IdeSvc from '../../../app/ide/ide.service';
 import {CheBranding} from '../../../components/branding/che-branding.factory';
+import {WorkspacesService} from '../../workspaces/workspaces.service';
+import {CheNotification} from '../../../components/notification/che-notification.factory';
+
 
 const MAX_RECENT_WORKSPACES_ITEMS: number = 5;
 
@@ -22,6 +26,9 @@ const MAX_RECENT_WORKSPACES_ITEMS: number = 5;
  * @author Oleksii Kurinnyi
  */
 export class NavbarRecentWorkspacesController {
+
+  static $inject = ['ideSvc', 'cheWorkspace', 'cheBranding', '$window', '$log', '$scope', '$rootScope', 'workspacesService', 'cheNotification'];
+
   cheWorkspace: CheWorkspace;
   dropdownItemTempl: Array<any>;
   workspaces: Array<che.IWorkspace>;
@@ -35,18 +42,30 @@ export class NavbarRecentWorkspacesController {
   $rootScope: ng.IRootScopeService;
   dropdownItems: Object;
   workspaceCreationLink: string;
+  workspacesService: WorkspacesService;
+  cheNotification: CheNotification;
+
 
   /**
    * Default constructor
-   * @ngInject for Dependency injection
    */
-  constructor(ideSvc: IdeSvc, cheWorkspace: CheWorkspace, cheBranding: CheBranding, $window: ng.IWindowService, $log: ng.ILogService, $scope: ng.IScope, $rootScope: ng.IRootScopeService) {
+  constructor(ideSvc: IdeSvc,
+              cheWorkspace: CheWorkspace,
+              cheBranding: CheBranding,
+              $window: ng.IWindowService,
+              $log: ng.ILogService,
+              $scope: ng.IScope,
+              $rootScope: ng.IRootScopeService,
+              workspacesService: WorkspacesService,
+              cheNotification: CheNotification) {
     this.ideSvc = ideSvc;
     this.cheWorkspace = cheWorkspace;
     this.$log = $log;
     this.$window = $window;
     this.$rootScope = $rootScope;
     this.workspaceCreationLink = cheBranding.getWorkspace().creationLink;
+    this.workspacesService = workspacesService;
+    this.cheNotification = cheNotification;
 
     // workspace updated time map by id
     this.workspaceUpdated = new Map();
@@ -103,9 +122,6 @@ export class NavbarRecentWorkspacesController {
    * Forms the dropdown items template, based of workspace settings.
    */
   prepareDropdownItemsTemplate(): void {
-    let autoSnapshot = this.cheWorkspace.getAutoSnapshotSettings();
-    let oppositeStopTitle = autoSnapshot ? 'Stop without snapshot' : 'Stop with snapshot';
-
     this.dropdownItemTempl = [
       // running
       {
@@ -113,15 +129,7 @@ export class NavbarRecentWorkspacesController {
         scope: 'RUNNING',
         icon: 'fa fa-stop',
         _onclick: (workspaceId: string) => {
-          this.stopRecentWorkspace(workspaceId, autoSnapshot);
-        }
-      },
-      {
-        name: oppositeStopTitle,
-        scope: 'RUNNING',
-        icon: 'fa fa-stop',
-        _onclick: (workspaceId: string) => {
-          this.stopRecentWorkspace(workspaceId, !autoSnapshot);
+          this.stopRecentWorkspace(workspaceId);
         }
       },
       // stopped
@@ -131,6 +139,15 @@ export class NavbarRecentWorkspacesController {
         icon: 'fa fa-play',
         _onclick: (workspaceId: string) => {
           this.runRecentWorkspace(workspaceId);
+        }
+      },
+      // not supported
+      {
+        name: 'Not supported',
+        scope: '',
+        icon: '',
+        _onclick: () => {
+          // do nothing
         }
       }
     ];
@@ -209,7 +226,7 @@ export class NavbarRecentWorkspacesController {
    */
   getWorkspaceName(workspaceId: string): string {
     let workspace = this.cheWorkspace.getWorkspaceById(workspaceId);
-    return workspace ? workspace.config.name : 'unknown';
+    return workspace ? this.cheWorkspace.getWorkspaceDataManager().getName(workspace) : 'unknown';
   }
 
   /**
@@ -222,22 +239,33 @@ export class NavbarRecentWorkspacesController {
   }
 
   /**
-   * Returns IDE link
-   * @param workspaceId {String} workspace id
+   * @param {che.IWorkspace} workspace details
    * @returns {string}
    */
-  getIdeLink(workspaceId: string): string {
-    let workspace = this.cheWorkspace.getWorkspaceById(workspaceId);
-    return '#/ide/' + (workspace ? (workspace.namespace + '/' + workspace.config.name) : 'unknown');
+  getLink(workspace: che.IWorkspace): string {
+    if (this.workspacesService.isSupported(workspace)) {
+      return this.getIdeLink(workspace);
+    } else {
+      return this.getWorkspaceDetailsLink(workspace);
+    }
   }
 
   /**
-   * Opens new tab/window with IDE
-   * @param workspaceId {String} workspace id
+   * Returns IDE link
+   * @param {che.IWorkspace} workspace details
+   * @returns {string}
    */
-  openLinkInNewTab(workspaceId: string): void {
-    let url = this.getIdeLink(workspaceId);
-    this.$window.open(url, '_blank');
+  getIdeLink(workspace: che.IWorkspace): string {
+    return '#/ide/' + (workspace ? (workspace.namespace + '/' + this.cheWorkspace.getWorkspaceDataManager().getName(workspace)) : 'unknown');
+  }
+
+  /**
+   * Returns link to page with workspace details
+   * @param {che.IWorkspace} workspace details
+   * @returns {string}
+   */
+  getWorkspaceDetailsLink(workspace: che.IWorkspace): string {
+    return '#/workspace/' + workspace.namespace + '/' + this.cheWorkspace.getWorkspaceDataManager().getName(workspace);
   }
 
   /**
@@ -250,35 +278,48 @@ export class NavbarRecentWorkspacesController {
       return this.dropdownItemTempl;
     }
 
-    let workspace = this.cheWorkspace.getWorkspaceById(workspaceId),
-      disabled = workspace && (workspace.status === 'STOPPING' || workspace.status === 'SNAPSHOTTING'),
-      visibleScope = (workspace && (workspace.status === 'RUNNING' || workspace.status === 'STOPPING' || workspace.status === 'SNAPSHOTTING' || workspace.status === 'STARTING')) ? 'RUNNING' : 'STOPPED';
-
     if (!this.dropdownItems[workspaceId]) {
-      this.dropdownItems[workspaceId] = [];
       this.dropdownItems[workspaceId] = angular.copy(this.dropdownItemTempl);
     }
 
-    this.dropdownItems[workspaceId].forEach((item: any) => {
-      item.disabled = disabled;
-      item.hidden = item.scope !== visibleScope;
-      item.onclick = () => {
-        item._onclick(workspace.id);
-      };
-    });
+    const workspace = this.cheWorkspace.getWorkspaceById(workspaceId);
 
-    return this.dropdownItems[workspaceId];
+    // check if default environment of the workspace contains supported recipe type
+    const isSupported = this.workspacesService.isSupported(workspace);
+    if (isSupported) {
+      const disabled = workspace && (workspace.status === 'STOPPING'),
+        visibleScope = (workspace && (workspace.status === 'RUNNING' || workspace.status === 'STOPPING' || workspace.status === 'STARTING')) ? 'RUNNING' : 'STOPPED';
+
+      this.dropdownItems[workspaceId].forEach((item: any) => {
+        item.disabled = disabled;
+        item.hidden = item.scope !== visibleScope;
+        item.onclick = () => {
+          item._onclick(workspace.id);
+        };
+      });
+      return this.dropdownItems[workspaceId];
+    } else {
+      this.dropdownItems[workspaceId].forEach((item: any) => {
+        item.disabled = true;
+        item.hidden = item.name !== 'Not supported';
+        item.onclick = () => {
+          item._onclick(workspace.id);
+        };
+      });
+      return this.dropdownItems[workspaceId];
+    }
   }
 
   /**
    * Stops specified workspace
    * @param workspaceId {String} workspace id
    */
-  stopRecentWorkspace(workspaceId: string, createSnapshot: boolean): void {
-    this.cheWorkspace.stopWorkspace(workspaceId, createSnapshot).then(() => {
+  stopRecentWorkspace(workspaceId: string): void {
+    this.cheWorkspace.stopWorkspace(workspaceId).then(() => {
       angular.noop();
     }, (error: any) => {
       this.$log.error(error);
+      this.cheNotification.showError('Stop workspace error.', error);
     });
   }
 
@@ -290,9 +331,10 @@ export class NavbarRecentWorkspacesController {
     let workspace = this.cheWorkspace.getWorkspaceById(workspaceId);
 
     this.updateRecentWorkspace(workspaceId);
-    this.cheWorkspace.startWorkspace(workspace.id, workspace.config.defaultEnv).then(() => {
-    }, (error: any) => {
+    
+    this.cheWorkspace.startWorkspace(workspace.id, workspace.config ? workspace.config.defaultEnv: null).catch((error: any) => {
       this.$log.error(error);
+      this.cheNotification.showError('Run workspace error.', error);
     });
   }
 

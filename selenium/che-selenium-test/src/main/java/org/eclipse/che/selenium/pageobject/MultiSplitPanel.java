@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -45,10 +46,8 @@ public class MultiSplitPanel {
 
   private interface Locators {
     String TABS_PANEL_ID = "gwt-debug-multiSplitPanel-tabsPanel";
-    String SPLIT_PANEL_AREA =
-        "(//div[@id='gwt-debug-multiSplitPanel-tabsPanel']//following::div[contains(@style,'position')][1])[position()=%s]";
-    String SPLIT_PANE_MENU_ICON =
-        "(//div[@id='gwt-debug-multiSplitPanel-tabsPanel']/div[1])[position()=%s]";
+    String SPLIT_PANEL_AREA = "(//div[@id='gwt-debug-process-output-panel-holder'])[position()=%s]";
+    String SPLIT_PANE_MENU_ICON = "(//div[@id='gwt-debug-menuSplitPanel'])[position()=%s]";
     String SPLIT_PANE_MENU = "//div[@class='popupContent']";
     String SPLIT_PANE_COMMAND = "//div[@class='popupContent']//following::div[text()='%s']";
     String PROCESS_IN_MENU_CLOSE_ICON =

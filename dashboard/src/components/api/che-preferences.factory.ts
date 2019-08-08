@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,11 +18,21 @@
  */
 export class ChePreferences {
 
+  static $inject = ['$resource', '$http', '$window'];
+
+  private $window: ng.IWindowService;
+  private $resource: ng.resource.IResourceService;
+  private $http: ng.IHttpService;
+  private remotePreferencesAPI: any;
+  private registries: any[];
+  private preferences: any;
+
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($resource, $http, $window) {
+  constructor($resource: ng.resource.IResourceService,
+              $http: ng.IHttpService,
+              $window: ng.IWindowService) {
     this.$window = $window;
 
     // keep resource
@@ -33,7 +44,7 @@ export class ChePreferences {
     // remote call
     this.remotePreferencesAPI = this.$resource('/api/preferences', {}, {});
 
-    //registry array
+    // registry array
     this.registries = [];
   }
 
@@ -41,15 +52,15 @@ export class ChePreferences {
    * Gets the preferences
    * @return preferences
    */
-  getPreferences() {
+  getPreferences(): any {
     return this.preferences;
   }
 
   /**
    * Update the preferences
-   * @param properties
+   * @param {any} properties
    */
-  updatePreferences(properties) {
+  updatePreferences(properties: any): ng.IPromise<any> {
     if (this.preferences && properties) {
       angular.extend(this.preferences, properties);
     } else if (properties) {
@@ -64,7 +75,7 @@ export class ChePreferences {
    * Remove preferences properties
    * @param properties (list of keys)
    */
-  removePreferences(properties) {
+  removePreferences(properties: any): void {
     // delete method doesn't send body when it is defined in $resources
     // that's why direct $http call is used.
     this.$http({
@@ -74,16 +85,16 @@ export class ChePreferences {
       data: properties
     }).then(() => {
       this.fetchPreferences();
-    })
+    });
   }
 
   /**
    * Gets the preferences data
    */
-  fetchPreferences() {
+  fetchPreferences(): ng.IPromise<any> {
     let promise = this.remotePreferencesAPI.get().$promise;
 
-    promise.then((preferences) => {
+    promise.then((preferences: any) => {
       // update preferences data if we have new value
       this._setPreferences(preferences);
     });
@@ -96,18 +107,18 @@ export class ChePreferences {
    * Gets the registries
    * @return [*] registries
    */
-  getRegistries() {
+  getRegistries(): any[] {
     return this.registries;
   }
 
   /**
    * Add a registry
-   * @param registryUrl
-   * @param userName
-   * @param userPassword
+   * @param {string} registryUrl
+   * @param {string} userName
+   * @param {string} userPassword
    * @returns {*} the promise
    */
-  addRegistry(registryUrl, userName, userPassword) {
+  addRegistry(registryUrl: string, userName: string, userPassword: string): ng.IPromise<any> {
     let credentials = {};
     credentials[registryUrl] = {
       username: userName,
@@ -127,20 +138,19 @@ export class ChePreferences {
     let preferences = {dockerCredentials: credentialsBase64};
     let promise = this.updatePreferences(preferences);
 
-    promise.then((preferences) => {
+    promise.then((preferences: any) => {
       this._setPreferences(preferences);
     });
 
     return promise;
   }
 
-
   /**
    * Remove the registry by its URL
-   * @param registryUrl
+   * @param {string} registryUrl
    * @returns {*} the promise
    */
-  removeRegistry(registryUrl) {
+  removeRegistry(registryUrl: string): ng.IPromise<any> {
     let credentialsJson = this.$window.atob(this.preferences.dockerCredentials);
     let credentials = angular.fromJson(credentialsJson);
 
@@ -151,7 +161,7 @@ export class ChePreferences {
 
     let promise = this.updatePreferences(preferences);
 
-    promise.then((preferences) => {
+    promise.then((preferences: any) => {
       this._setPreferences(preferences);
     });
 
@@ -160,9 +170,9 @@ export class ChePreferences {
 
   /**
    * Sets preferences
-   * @param preferences
+   * @param {any} preferences
    */
-  _setPreferences(preferences) {
+  _setPreferences(preferences: any): void {
     this.preferences = preferences;
     this._updateRegistries();
   }
@@ -170,7 +180,7 @@ export class ChePreferences {
   /**
    * Update registry array from preferences
    */
-  _updateRegistries() {
+  _updateRegistries(): void {
     this.registries.length = 0;
     if (!this.preferences || !this.preferences.dockerCredentials) {
       return;
@@ -178,13 +188,15 @@ export class ChePreferences {
     let credentialsJson = this.$window.atob(this.preferences.dockerCredentials);
     let credentials = angular.fromJson(credentialsJson);
 
-    for (var key in credentials) {
-      let credential = {
-        url: key,
-        username: credentials[key].username,
-        password: credentials[key].password
-      };
-      this.registries.push(credential);
+    for (let key in credentials) {
+      if (credentials.hasOwnProperty(key)) {
+        let credential = {
+          url: key,
+          username: credentials[key].username,
+          password: credentials[key].password
+        };
+        this.registries.push(credential);
+      }
     }
   }
 }

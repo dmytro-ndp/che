@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -46,6 +47,8 @@ import org.slf4j.LoggerFactory;
 
 /** Authentication service which allow get access token from OAuth provider site. */
 public abstract class OAuthAuthenticator {
+  private static final String AUTHENTICATOR_IS_NOT_CONFIGURED = "Authenticator is not configured";
+
   private static final Logger LOG = LoggerFactory.getLogger(OAuthAuthenticator.class);
 
   protected AuthorizationCodeFlow flow;
@@ -118,7 +121,8 @@ public abstract class OAuthAuthenticator {
     this.flow = flow;
     this.redirectUrisMap = new HashMap<>(redirectUris.size());
     for (String uri : redirectUris) {
-      // Redirect URI may be in form urn:ietf:wg:oauth:2.0:oob os use java.net.URI instead of java.net.URL
+      // Redirect URI may be in form urn:ietf:wg:oauth:2.0:oob os use java.net.URI instead of
+      // java.net.URL
       this.redirectUrisMap.put(
           Pattern.compile("([a-z0-9\\-]+\\.)?" + URI.create(uri).getHost()), uri);
     }
@@ -136,7 +140,7 @@ public abstract class OAuthAuthenticator {
   public String getAuthenticateUrl(URL requestUrl, List<String> scopes)
       throws OAuthAuthenticationException {
     if (!isConfigured()) {
-      throw new OAuthAuthenticationException("Authenticator is not configured");
+      throw new OAuthAuthenticationException(AUTHENTICATOR_IS_NOT_CONFIGURED);
     }
 
     AuthorizationCodeRequestUrl url =
@@ -180,7 +184,7 @@ public abstract class OAuthAuthenticator {
    */
   public String callback(URL requestUrl, List<String> scopes) throws OAuthAuthenticationException {
     if (!isConfigured()) {
-      throw new OAuthAuthenticationException("Authenticator is not configured");
+      throw new OAuthAuthenticationException(AUTHENTICATOR_IS_NOT_CONFIGURED);
     }
 
     AuthorizationCodeResponseUrl authorizationCodeResponseUrl =
@@ -290,7 +294,7 @@ public abstract class OAuthAuthenticator {
    */
   public OAuthToken getToken(String userId) throws IOException {
     if (!isConfigured()) {
-      throw new IOException("Authenticator is not configured");
+      throw new IOException(AUTHENTICATOR_IS_NOT_CONFIGURED);
     }
     Credential credential = flow.loadCredential(userId);
     if (credential == null) {

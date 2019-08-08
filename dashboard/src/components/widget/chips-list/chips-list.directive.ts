@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,13 +20,7 @@ export class CheChipsList {
   transclude: boolean = true;
   require: string = 'ngModel';
 
-  /**
-   * Default constructor that is using resource
-   * @ngInject for Dependency injection
-   */
-  constructor() { }
-
-  template() {
+  template(): string {
     return `<md-chips class="che-chips-list">
       <md-chip-template >
         <div class="tag-text">{{$chip}}</div>
@@ -36,11 +31,11 @@ export class CheChipsList {
     </md-chips>`;
   }
 
-  compile(element, attrs) {
-    let keys = Object.keys(attrs);
+  compile($element: ng.IAugmentedJQuery, $attrs: ng.IAttributes) {
+    let keys = Object.keys($attrs);
 
     // search the md-chips element
-    let mdChipsElement = element.find('md-chips');
+    let mdChipsElement = $element.find('md-chips');
 
     keys.forEach((key: string) => {
 
@@ -52,7 +47,7 @@ export class CheChipsList {
       if (key.indexOf('che') === 0) {
         return;
       }
-      let value = attrs[key];
+      let value = $attrs[key];
 
       // handle empty values as boolean
       if (value === '') {
@@ -60,7 +55,7 @@ export class CheChipsList {
       }
 
       // set the value of the attribute
-      mdChipsElement.attr(attrs.$attr[key], value);
+      mdChipsElement.attr($attrs.$attr[key], value);
 
       // it needs to use DOM element method to set custom value of boolean attribute
       // because jQuery's 'attr' method substitutes this value with name of attribute
@@ -68,7 +63,7 @@ export class CheChipsList {
         mdChipsElement[0].setAttribute(key, value);
       }
 
-      element.removeAttr(attrs.$attr[key]);
+      $element.removeAttr($attrs.$attr[key]);
 
     });
   }

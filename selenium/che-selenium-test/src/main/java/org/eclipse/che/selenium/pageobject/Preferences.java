@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,26 +12,42 @@
 package org.eclipse.che.selenium.pageobject;
 
 import static java.lang.String.format;
+import static java.util.Arrays.asList;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Profile.PREFERENCES;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Profile.PROFILE_MENU;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ATTACHING_ELEM_TO_DOM_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ELEMENT_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.WIDGET_TIMEOUT_SEC;
+import static org.eclipse.che.selenium.pageobject.Preferences.DropDownGitInformationMenu.CONTRIBUTE_PREFERENCES;
+import static org.eclipse.che.selenium.pageobject.Preferences.Locators.EDITOR_CHECKBOX_SPAN_XPATH;
+import static org.eclipse.che.selenium.pageobject.Preferences.Locators.EDITOR_INPUT;
+import static org.eclipse.che.selenium.pageobject.Preferences.Locators.ERRORS_WARNINGS_RADIO_BUTTON;
+import static org.eclipse.che.selenium.pageobject.Preferences.Locators.ERRORS_WARNINGS_RADIO_BUTTON_BLOCK;
+import static org.eclipse.che.selenium.pageobject.Preferences.Locators.MENU_IN_EXPANDED_DROPDOWN_XPATH_WITH_PARAM;
+import static org.eclipse.che.selenium.pageobject.Preferences.Locators.SSH_DELETE_BUTTON_FOR_HOST;
+import static org.openqa.selenium.Keys.ALT;
+import static org.openqa.selenium.Keys.COMMAND;
+import static org.openqa.selenium.Keys.CONTROL;
+import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOf;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.action.ActionsFactory;
+import org.eclipse.che.selenium.core.utils.PlatformUtils;
 import org.eclipse.che.selenium.core.utils.WaitUtils;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
-import org.openqa.selenium.support.ui.ExpectedCondition;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,12 +55,16 @@ import org.slf4j.LoggerFactory;
 /** @autor by mmusienko on 9/19/14. */
 @Singleton
 public class Preferences {
+
+  private static final String GITHUB_COM = "github.com";
   private final Loader loader;
   private final ActionsFactory actionsFactory;
   private final AskDialog askDialog;
   private final AskForValueDialog askForValueDialog;
   private final GitHub gitHub;
+  private final Menu menu;
   private final SeleniumWebDriver seleniumWebDriver;
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
 
   @Inject
   public Preferences(
@@ -52,19 +73,23 @@ public class Preferences {
       ActionsFactory actionsFactory,
       AskDialog askDialog,
       AskForValueDialog askForValueDialog,
-      GitHub github) {
+      GitHub github,
+      Menu menu,
+      SeleniumWebDriverHelper seleniumWebDriverHelper) {
     this.seleniumWebDriver = seleniumWebDriver;
     this.loader = loader;
     this.actionsFactory = actionsFactory;
     this.askDialog = askDialog;
     this.askForValueDialog = askForValueDialog;
     this.gitHub = github;
+    this.menu = menu;
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(Preferences.class);
 
-  private interface Locators {
+  protected interface Locators {
     String PREFERENCES_FORM_ID = "gwt-debug-window-preferences-scrollPanel-preferences";
     String DROP_DOWN_HEADER_XPATH_WITH_PARAM =
         "//div[@id='gwt-debug-window-preferences-scrollPanel-preferences']//span[text()='%s']";
@@ -76,7 +101,8 @@ public class Preferences {
     String SSH_GENERATE_AND_ADD_TO_GITHUB = "gwt-debug-gitSshKeys-generateGithubKey";
     String SSH_KEYS_TABLE = "//table[@id='gwt-debug-sshKeys-cellTable-keys']/tbody[1]";
     String SSH_DELETE_BUTTON_FOR_HOST = "/following::button[text()='Delete']";
-    String OK_BUTTON_ID = "window-preferences-storeChanges";
+    String SAVE_BUTTON_ID = "window-preferences-storeChanges";
+    String REFRESH_BUTTON_ID = "window-preferences-refresh";
     String CLOSE_BTN_ID = "window-preferences-close";
     String COMMITTER_INPUT_NAME = "gwt-debug-committer-preferences-name";
     String COMMITTER_INPUT_EMAIL = "gwt-debug-committer-preferences-email";
@@ -92,6 +118,14 @@ public class Preferences {
         "div#gwt-debug-askValueDialog-window input#gwt-debug-askValueDialog-textBox";
     String SHOW_ARTIFACT_CHECKBOX =
         "//input[@id='gwt-debug-window-preferences-plugins-maven-showArtifactId-input']";
+    String SET_CONTRIBUTE_CHECKBOX_ID =
+        "gwt-debug-preferences-git-contribute-activateByProjectSelection";
+    String SHOW_CONTRIBUTE_CHECKBOX_ID =
+        "gwt-debug-preferences-git-contribute-activateByProjectSelection-input";
+    String ADD_SCHEMA_URL_BUTTON_ID = "gwt-debug-preferences-addUrl";
+    String ADD_SCHEMA_URL_INPUT_ID = "gwt-debug-askValueDialog-textBox";
+    String DELETE_SCHEMA_BUTTON_XPATH =
+        "//table[@id='gwt-debug-preferences-cellTable-keys']//button";
   }
 
   public interface DropDownListsHeaders {
@@ -103,12 +137,17 @@ public class Preferences {
   }
 
   public interface DropDownSshKeysMenu {
-    String SSH_Keystore = "VCS";
+    String VCS = "VCS";
     String MACHINE = "Machine";
   }
 
-  public interface DropDownGitCommitterInformationMenu {
+  public interface DropDownLanguageServerSettings {
+    String YAML = "Yaml";
+  }
+
+  public interface DropDownGitInformationMenu {
     String COMMITTER = "Committer";
+    String CONTRIBUTE_PREFERENCES = "Contribute";
   }
 
   public interface DropDownJavaCompilerMenu {
@@ -139,8 +178,11 @@ public class Preferences {
   @FindBy(id = Locators.DEFAULT_RAM_MENU_FIELD)
   private WebElement defaulRAMField;
 
-  @FindBy(id = Locators.OK_BUTTON_ID)
-  private WebElement okBtn;
+  @FindBy(id = Locators.SAVE_BUTTON_ID)
+  private WebElement saveBtn;
+
+  @FindBy(id = Locators.REFRESH_BUTTON_ID)
+  private WebElement refreshBtn;
 
   @FindBy(id = Locators.CLOSE_BTN_ID)
   private WebElement closeBtn;
@@ -175,29 +217,40 @@ public class Preferences {
   @FindBy(xpath = Locators.SHOW_ARTIFACT_CHECKBOX)
   private WebElement showArtifactCheckBox;
 
+  @FindBy(id = Locators.SET_CONTRIBUTE_CHECKBOX_ID)
+  private WebElement setContributeCheckbox;
+
+  @FindBy(id = Locators.SHOW_CONTRIBUTE_CHECKBOX_ID)
+  private WebElement showContributeCheckbox;
+
+  @FindBy(id = Locators.ADD_SCHEMA_URL_BUTTON_ID)
+  private WebElement addSchemaUrlButton;
+
+  @FindBy(id = Locators.ADD_SCHEMA_URL_INPUT_ID)
+  private WebElement addSchemaUrlInput;
+
+  @FindBy(xpath = Locators.DELETE_SCHEMA_BUTTON_XPATH)
+  private WebElement deleteSchemaButton;
+
   /** wait preferences form */
   public void waitPreferencesForm() {
-    new WebDriverWait(seleniumWebDriver, 10)
-        .until(ExpectedConditions.visibilityOf(preferencesForm));
+    seleniumWebDriverHelper.waitVisibility(preferencesForm);
   }
 
   /** wait closing of the preferences form */
   public void waitPreferencesFormIsClosed() {
-    new WebDriverWait(seleniumWebDriver, 10)
-        .until(
-            ExpectedConditions.invisibilityOfElementLocated(By.id(Locators.PREFERENCES_FORM_ID)));
+    seleniumWebDriverHelper.waitInvisibility(By.id(Locators.PREFERENCES_FORM_ID));
   }
 
   /**
-   * wait appears dropdawn-header with specified mame
+   * wait appears dropdown-header with specified mame
    *
    * @param nameMenu name of header (all names describe in public interface )
    */
   public void waitDropDownHeaderMenu(String nameMenu) {
-    new WebDriverWait(seleniumWebDriver, 20)
-        .until(
-            ExpectedConditions.visibilityOfAllElementsLocatedBy(
-                By.xpath(format(Locators.DROP_DOWN_HEADER_XPATH_WITH_PARAM, nameMenu))));
+    seleniumWebDriverHelper.waitVisibilityOfAllElements(
+        By.xpath(format(Locators.DROP_DOWN_HEADER_XPATH_WITH_PARAM, nameMenu)),
+        ELEMENT_TIMEOUT_SEC);
   }
 
   /**
@@ -206,10 +259,8 @@ public class Preferences {
    * @param menu (all menus describe in public interface )
    */
   public void waitMenuInCollapsedDropdown(String menu) {
-    new WebDriverWait(seleniumWebDriver, 20)
-        .until(
-            ExpectedConditions.visibilityOfAllElementsLocatedBy(
-                By.xpath(format(Locators.MENU_IN_EXPANDED_DROPDOWN_XPATH_WITH_PARAM, menu))));
+    seleniumWebDriverHelper.waitVisibilityOfAllElements(
+        By.xpath(format(MENU_IN_EXPANDED_DROPDOWN_XPATH_WITH_PARAM, menu)), ELEMENT_TIMEOUT_SEC);
   }
 
   /**
@@ -220,71 +271,115 @@ public class Preferences {
   public void selectDroppedMenuByName(String nameMenu) {
     loader.waitOnClosed();
     waitMenuInCollapsedDropdown(nameMenu);
-    seleniumWebDriver
-        .findElement(
-            By.xpath(format(Locators.MENU_IN_EXPANDED_DROPDOWN_XPATH_WITH_PARAM, nameMenu)))
-        .click();
+    seleniumWebDriverHelper.waitAndClick(
+        By.xpath(format(MENU_IN_EXPANDED_DROPDOWN_XPATH_WITH_PARAM, nameMenu)));
   }
 
   /** wait ok button click and wait closing the form */
   public void clickOnOkBtn() {
-    new WebDriverWait(seleniumWebDriver, 10).until(ExpectedConditions.visibilityOf(okBtn));
-    okBtn.click();
+    seleniumWebDriverHelper.waitAndClick(saveBtn);
     loader.waitOnClosed();
   }
 
-  /** wait close button click and wait closing the form */
-  public void clickOnCloseBtn() {
-    new WebDriverWait(seleniumWebDriver, 10).until(ExpectedConditions.visibilityOf(closeBtn));
-    closeBtn.click();
+  /**
+   * determines whether or not 'Preferences' form opened
+   *
+   * @return true if the form is opened
+   */
+  public boolean isPreferencesFormOpened() {
+    return seleniumWebDriverHelper.isVisible(closeBtn);
+  }
+
+  /**
+   * defines a state the 'Save' button, enabled or not
+   *
+   * @return true if the button is enabled
+   */
+  public boolean isSaveButtonIsEnabled() {
+    return seleniumWebDriverHelper.waitVisibilityAndGetEnableState(saveBtn);
+  }
+
+  /** wait and click on the 'Refresh' button */
+  public void clickRefreshButton() {
+    seleniumWebDriverHelper.waitAndClick(refreshBtn);
+  }
+
+  /** click on the 'Close' button */
+  public void clickOnCloseButton() {
+    seleniumWebDriverHelper.waitAndClick(closeBtn);
+  }
+
+  /** click on the 'Close' button and wait closing the form */
+  public void close() {
+    seleniumWebDriverHelper.waitAndClick(closeBtn);
     waitPreferencesFormIsClosed();
   }
 
   public void clickOnGenerateKeyButton() {
-    new WebDriverWait(seleniumWebDriver, 10)
-        .until(ExpectedConditions.visibilityOf(generateKeyBtn))
-        .click();
+    seleniumWebDriverHelper.waitAndClick(generateKeyBtn);
+  }
+
+  public void clickOnAddSchemaUrlButton() {
+    seleniumWebDriverHelper.waitAndClick(addSchemaUrlButton);
+  }
+
+  public void addSchemaUrl(String schemaName) {
+    seleniumWebDriverHelper.waitVisibility(addSchemaUrlInput);
+    addSchemaUrlInput.sendKeys(schemaName);
+    seleniumWebDriverHelper.waitAndClick(By.id("askValue-dialog-ok"));
+  }
+
+  public void deleteSchema() {
+    seleniumWebDriverHelper.waitAndClick(deleteSchemaButton);
+    askDialog.clickOkBtn();
+    askDialog.waitFormToClose();
+  }
+
+  public void setStateContributeChecboxAndCloseForm(boolean state) {
+    setContributeCheckbox(state);
+    clickOnOkBtn();
+    close();
+  }
+
+  public void openContributeTab() {
+    open();
+    waitMenuInCollapsedDropdown(CONTRIBUTE_PREFERENCES);
+    selectDroppedMenuByName(CONTRIBUTE_PREFERENCES);
+  }
+
+  public void open() {
+    menu.runCommand(PROFILE_MENU, PREFERENCES);
+    waitPreferencesForm();
   }
 
   public void clickOnGenerateAndUploadToGitHub() {
-    new WebDriverWait(seleniumWebDriver, 10)
-        .until(ExpectedConditions.visibilityOf(generateAndUploadBtn))
-        .click();
-  }
-
-  public boolean isSshKeyTableIsEmpty(String expText) {
-    loader.waitOnClosed();
-    new WebDriverWait(seleniumWebDriver, ELEMENT_TIMEOUT_SEC)
-        .until(ExpectedConditions.presenceOfElementLocated(By.xpath(Locators.SSH_KEYS_TABLE)));
-    return sshKeysTable.getAttribute("style").contains(expText);
+    seleniumWebDriverHelper.waitAndClick(generateAndUploadBtn);
   }
 
   public boolean isSshKeyIsPresent(String host) {
-    loader.waitOnClosed();
-    new WebDriverWait(seleniumWebDriver, ELEMENT_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(Locators.SSH_KEYS_TABLE)));
-    return sshKeysTable.getText().contains(host);
+    try {
+      seleniumWebDriverHelper.waitPresence(By.xpath(Locators.SSH_KEYS_TABLE), ELEMENT_TIMEOUT_SEC);
+      return sshKeysTable.getText().contains(host);
+    } catch (TimeoutException e) {
+      return false;
+    }
   }
 
+  // timeout is changed to 40 sec, is related to running tests on ocp platform
   public void waitSshKeyIsPresent(final String host) {
-    new WebDriverWait(seleniumWebDriver, ELEMENT_TIMEOUT_SEC)
-        .until((ExpectedCondition<Boolean>) driver -> sshKeysTable.getText().contains(host));
+    seleniumWebDriverHelper.waitSuccessCondition(
+        driver -> isSshKeyIsPresent(host), WIDGET_TIMEOUT_SEC);
   }
 
   public void deleteSshKeyByHost(String host) {
-    WebElement element =
-        seleniumWebDriver.findElement(
-            By.xpath("//div[text()='" + host + "']" + Locators.SSH_DELETE_BUTTON_FOR_HOST));
-    try {
-      new WebDriverWait(seleniumWebDriver, ELEMENT_TIMEOUT_SEC)
-          .until(ExpectedConditions.visibilityOf(element))
-          .click();
-    } catch (StaleElementReferenceException e) {
-      WaitUtils.sleepQuietly(2);
-      new WebDriverWait(seleniumWebDriver, ELEMENT_TIMEOUT_SEC)
-          .until(ExpectedConditions.visibilityOf(element))
-          .click();
-    }
+    String deleteButtonXPath = "//div[text()='" + host + "']" + SSH_DELETE_BUTTON_FOR_HOST;
+    seleniumWebDriverHelper.waitNoExceptions(
+        () -> seleniumWebDriverHelper.waitAndClick(By.xpath(deleteButtonXPath)),
+        WIDGET_TIMEOUT_SEC,
+        StaleElementReferenceException.class);
+
+    askDialog.clickOkBtn();
+    askDialog.waitFormToClose();
   }
 
   /**
@@ -303,10 +398,9 @@ public class Preferences {
    * @param nameCommitter is a name of the committer
    */
   public void waitInputNameCommitter(final String nameCommitter) {
-    new WebDriverWait(seleniumWebDriver, 3)
-        .until(
-            (ExpectedCondition<Boolean>)
-                webDriver -> nameCommitterInput.getAttribute("value").contains(nameCommitter));
+    seleniumWebDriverHelper.waitSuccessCondition(
+        webDriver -> nameCommitterInput.getAttribute("value").contains(nameCommitter),
+        ATTACHING_ELEM_TO_DOM_SEC);
   }
 
   /**
@@ -335,10 +429,9 @@ public class Preferences {
    * @param emailCommitter is an email of the committer
    */
   public void waitInputEmailCommitter(final String emailCommitter) {
-    new WebDriverWait(seleniumWebDriver, 3)
-        .until(
-            (ExpectedCondition<Boolean>)
-                webDriver -> emailCommitterInput.getAttribute("value").contains(emailCommitter));
+    seleniumWebDriverHelper.waitSuccessCondition(
+        webDriver -> emailCommitterInput.getAttribute("value").contains(emailCommitter),
+        ATTACHING_ELEM_TO_DOM_SEC);
   }
 
   /**
@@ -351,18 +444,49 @@ public class Preferences {
     waitInputEmailCommitter(emailCommitter);
   }
 
+  /** clicks on the 'Contribute' checkbox */
+  public void clickOnContributeCheckbox() {
+    seleniumWebDriverHelper.waitAndClick(setContributeCheckbox);
+  }
+
+  /** call the 'Contribute' by hot key */
+  public void callContributeActionByHotKey() {
+    seleniumWebDriverHelper.sendKeys(
+        Keys.chord(CONTROL, PlatformUtils.isMac() ? COMMAND : ALT, "6"));
+  }
+
+  /** wait the 'Contribute' checkbox is selected */
+  public void waitContributeCheckboxIsSelected() {
+    seleniumWebDriverHelper.waitElementIsSelected(showContributeCheckbox);
+  }
+
+  /** wait the 'Contribute' checkbox is not selected */
+  public void waitContributeCheckboxIsNotSelected() {
+    seleniumWebDriverHelper.waitElementIsNotSelected(showContributeCheckbox);
+  }
+
+  /**
+   * Set 'Contribute' checkbox to specified state and wait it state
+   *
+   * @param state state of checkbox (true if checkbox must be selected)
+   */
+  public void setContributeCheckbox(boolean state) {
+    seleniumWebDriverHelper.waitAndSetCheckbox(
+        showContributeCheckbox, setContributeCheckbox, state);
+  }
+
   /**
    * return the list of items are presented in the 'Error/Warnings' widget
    *
    * @return list of items
    */
   public List<String> getItemsFromErrorWarningsWidget() {
+    String errorWarnings =
+        seleniumWebDriverHelper.waitVisibilityAndGetText(
+            errorsWarningsTab, REDRAW_UI_ELEMENTS_TIMEOUT_SEC);
     List<String> itemList =
-        Arrays.asList(
-            new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-                .until(ExpectedConditions.visibilityOf(errorsWarningsTab))
-                .getText()
-                .split("((\n)(warning|ignore|error)(\n))|((\n)(warning|ignore|error))"));
+        asList(
+            errorWarnings.split("((\n)(warning|ignore|error)(\n))|((\n)(warning|ignore|error))"));
     return itemList;
   }
 
@@ -375,27 +499,24 @@ public class Preferences {
       DropDownValueForErrorWaitingWidget valueOfDropDown) {
 
     for (String settingsText : getItemsFromErrorWarningsWidget()) {
-      List<WebElement> DropDownList =
-          new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-              .until(
-                  ExpectedConditions.presenceOfAllElementsLocatedBy(
-                      By.xpath(format(Locators.ERRORS_WARNINGS_RADIO_BUTTON, settingsText))));
+      List<WebElement> dropDownList =
+          seleniumWebDriverHelper.waitPresenceOfAllElements(
+              By.xpath(format(ERRORS_WARNINGS_RADIO_BUTTON, settingsText)),
+              REDRAW_UI_ELEMENTS_TIMEOUT_SEC);
 
-      new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-          .until(
-              ExpectedConditions.visibilityOfElementLocated(
-                  By.xpath(format(Locators.ERRORS_WARNINGS_RADIO_BUTTON_BLOCK, settingsText))))
-          .click();
+      seleniumWebDriverHelper.waitAndClick(
+          By.xpath(format(ERRORS_WARNINGS_RADIO_BUTTON_BLOCK, settingsText)),
+          REDRAW_UI_ELEMENTS_TIMEOUT_SEC);
 
       switch (valueOfDropDown) {
         case IGNORE:
-          DropDownList.get(0).click();
+          seleniumWebDriverHelper.waitAndClick(dropDownList.get(0));
           break;
         case WARNING:
-          DropDownList.get(1).click();
+          seleniumWebDriverHelper.waitAndClick(dropDownList.get(1));
           break;
         default:
-          DropDownList.get(2).click();
+          seleniumWebDriverHelper.waitAndClick(dropDownList.get(2));
           break;
       }
     }
@@ -410,12 +531,11 @@ public class Preferences {
   public List<String> getAllSettingsFromEditorWidget(String[] headerSettings) {
     List<String> settingList =
         new ArrayList<>(
-            Arrays.asList(
-                new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-                    .until(ExpectedConditions.visibilityOf(editorProperties))
-                    .getText()
+            asList(
+                seleniumWebDriverHelper
+                    .waitVisibilityAndGetText(editorProperties, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
                     .split("\n")));
-    settingList.removeAll(Arrays.asList(headerSettings));
+    settingList.removeAll(asList(headerSettings));
     return settingList;
   }
 
@@ -428,22 +548,16 @@ public class Preferences {
   public void setAllCheckboxSettingsInEditorWidget(
       FlagForEditorWidget valueOfFlag, List<String> settingsList) {
     for (String settingsItem : settingsList) {
-      if (new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-          .until(
-              ExpectedConditions.presenceOfElementLocated(
-                  By.xpath(format(Locators.EDITOR_INPUT, settingsItem))))
-          .getAttribute("type")
+      if (seleniumWebDriverHelper
+          .waitVisibilityAndGetAttribute(
+              By.xpath(format(EDITOR_INPUT, settingsItem)), "type", REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
           .equals("checkbox")) {
         WebElement checkbox =
-            new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-                .until(
-                    ExpectedConditions.presenceOfElementLocated(
-                        By.xpath(format(Locators.EDITOR_INPUT, settingsItem))));
+            seleniumWebDriverHelper.waitPresence(By.xpath(format(EDITOR_INPUT, settingsItem)));
         WebElement spanCheckbox =
-            new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-                .until(
-                    ExpectedConditions.presenceOfElementLocated(
-                        By.xpath(format(Locators.EDITOR_CHECKBOX_SPAN_XPATH, settingsItem))));
+            seleniumWebDriverHelper.waitPresence(
+                By.xpath(format(EDITOR_CHECKBOX_SPAN_XPATH, settingsItem)),
+                REDRAW_UI_ELEMENTS_TIMEOUT_SEC);
         switch (valueOfFlag) {
           case CHECK:
             if (!checkbox.isSelected()) {
@@ -471,28 +585,22 @@ public class Preferences {
   public void uploadPrivateSshKey(String host, String filePath) {
     File file = new File(filePath);
     LOG.info("Absolute path to private SSH key: {}", file.getAbsolutePath());
-    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(Locators.SSH_UPLOAD_KEY)))
-        .click();
+    seleniumWebDriverHelper.waitAndClick(By.xpath(Locators.SSH_UPLOAD_KEY));
     WebElement hostInput =
-        new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-            .until(
-                ExpectedConditions.visibilityOfElementLocated(By.xpath(UploadSSHKey.HOST_INPUT)));
+        seleniumWebDriverHelper.waitVisibility(
+            By.xpath(UploadSSHKey.HOST_INPUT), REDRAW_UI_ELEMENTS_TIMEOUT_SEC);
     hostInput.clear();
     hostInput.sendKeys(host);
-    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(UploadSSHKey.FILE_INPUT)))
-        .sendKeys(file.getAbsolutePath());
+    seleniumWebDriverHelper.waitAndSendKeysTo(
+        By.xpath(UploadSSHKey.FILE_INPUT), file.getAbsolutePath(), REDRAW_UI_ELEMENTS_TIMEOUT_SEC);
     WaitUtils.sleepQuietly(3);
-    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(UploadSSHKey.UPLOAD_BUTTON)))
-        .click();
+    seleniumWebDriverHelper.waitAndClick(
+        By.xpath(UploadSSHKey.UPLOAD_BUTTON), REDRAW_UI_ELEMENTS_TIMEOUT_SEC);
   }
 
   /** wait appearance of the Generate SSH key widget */
   public void waitGenerateSshWidget() {
-    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOf(genrateSShKeyWidget));
+    seleniumWebDriverHelper.waitVisibility(genrateSShKeyWidget, REDRAW_UI_ELEMENTS_TIMEOUT_SEC);
   }
 
   /**
@@ -502,7 +610,7 @@ public class Preferences {
    */
   public void typeTitleOfSshKey(String title) {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOf(genrateSShKeyTitleInput))
+        .until(visibilityOf(genrateSShKeyTitleInput))
         .sendKeys(title);
   }
 
@@ -528,32 +636,47 @@ public class Preferences {
     waitSshKeyIsPresent(titleOfKey);
   }
 
-  public void regenerateAndUploadSshKeyOnGithub(String githubUsername, String githubPassword)
-      throws Exception {
-    waitMenuInCollapsedDropdown(Preferences.DropDownSshKeysMenu.SSH_Keystore);
-    selectDroppedMenuByName(Preferences.DropDownSshKeysMenu.SSH_Keystore);
+  public void generateAndUploadSshKeyOnGithub(String githubUsername, String githubPassword) {
+    waitMenuInCollapsedDropdown(Preferences.DropDownSshKeysMenu.VCS);
+    selectDroppedMenuByName(Preferences.DropDownSshKeysMenu.VCS);
 
     loader.waitOnClosed();
+
+    // delete github keu if it exists
+    if (isSshKeyIsPresent(GITHUB_COM)) {
+      deleteSshKeyByHost(GITHUB_COM);
+    }
 
     String ideWin = seleniumWebDriver.getWindowHandle();
 
     // regenerate key and upload it on the gitHub
     clickOnGenerateAndUploadToGitHub();
 
-    askDialog.waitFormToOpen();
+    loader.waitOnClosed();
+
+    // check if github key has been uploaded without authorization on github.com
+    if (isSshKeyIsPresent(GITHUB_COM)) {
+      close();
+      waitPreferencesFormIsClosed();
+      return;
+    }
+
+    // login to github
+    askDialog.waitFormToOpen(25);
     askDialog.clickOkBtn();
     askDialog.waitFormToClose();
-    seleniumWebDriver.switchToNoneCurrentWindow(ideWin);
+    seleniumWebDriverHelper.switchToNextWindow(ideWin);
 
     gitHub.waitAuthorizationPageOpened();
     gitHub.typeLogin(githubUsername);
     gitHub.typePass(githubPassword);
     gitHub.clickOnSignInButton();
 
-    loader.waitOnClosed();
+    // it is needed for specified case when the github authorize page is not appeared
+    WaitUtils.sleepQuietly(2);
 
+    // authorize on github.com
     if (seleniumWebDriver.getWindowHandles().size() > 1) {
-      loader.waitOnClosed();
       gitHub.waitAuthorizeBtn();
       gitHub.clickOnAuthorizeBtn();
       seleniumWebDriver.switchTo().window(ideWin);
@@ -561,14 +684,13 @@ public class Preferences {
 
     seleniumWebDriver.switchTo().window(ideWin);
     loader.waitOnClosed();
-    waitSshKeyIsPresent("github.com");
+    waitSshKeyIsPresent(GITHUB_COM);
     loader.waitOnClosed();
-    clickOnCloseBtn();
+    close();
     waitPreferencesFormIsClosed();
   }
 
   public void clickOnShowArtifactCheckBox() {
-    Actions actions = new Actions(seleniumWebDriver);
-    actions.click(showArtifactCheckBox).build().perform();
+    seleniumWebDriverHelper.getAction().click(showArtifactCheckBox).perform();
   }
 }

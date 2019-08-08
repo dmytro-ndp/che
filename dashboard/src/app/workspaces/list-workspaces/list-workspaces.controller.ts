@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,7 +12,7 @@
 'use strict';
 import {CheAPI} from '../../../components/api/che-api.factory';
 import {CheNotification} from '../../../components/notification/che-notification.factory';
-import {CheWorkspace} from '../../../components/api/che-workspace.factory';
+import {CheWorkspace} from '../../../components/api/workspace/che-workspace.factory';
 import {CheNamespaceRegistry} from '../../../components/api/namespace/che-namespace-registry.factory';
 import {ConfirmDialogService} from '../../../components/service/confirm-dialog/confirm-dialog.service';
 import {CheBranding} from '../../../components/branding/che-branding.factory';
@@ -23,7 +24,11 @@ import {CheBranding} from '../../../components/branding/che-branding.factory';
  * @author Ann Shumilova
  */
 export class ListWorkspacesCtrl {
-  $q: ng.IQService;
+
+  static $inject = ['$log', '$mdDialog', '$q', 'lodash', 'cheAPI', 'cheNotification', 'cheBranding', 'cheWorkspace', 'cheNamespaceRegistry',
+   'confirmDialogService', '$scope', 'cheListHelperFactory'];
+
+   $q: ng.IQService;
   $log: ng.ILogService;
   lodash: any;
   $mdDialog: ng.material.IDialogService;
@@ -53,7 +58,6 @@ export class ListWorkspacesCtrl {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($log: ng.ILogService, $mdDialog: ng.material.IDialogService, $q: ng.IQService, lodash: any,
               cheAPI: CheAPI, cheNotification: CheNotification, cheBranding: CheBranding,
@@ -127,7 +131,7 @@ export class ListWorkspacesCtrl {
     promise.then(() => {
       return this.updateSharedWorkspaces();
     }, (error: any) => {
-      if (error.status === 304) {
+      if (error && error.status === 304) {
         // ok
         return this.updateSharedWorkspaces();
       }
@@ -154,11 +158,22 @@ export class ListWorkspacesCtrl {
     workspaces.forEach((workspace: che.IWorkspace) => {
       // first check the list of already received workspace info:
       if (!this.workspacesById.get(workspace.id)) {
-        const promise = this.cheAPI.getWorkspace().fetchWorkspaceDetails(workspace.id).then(() => {
-          let userWorkspace = this.cheAPI.getWorkspace().getWorkspaceById(workspace.id);
-          this.getWorkspaceInfo(userWorkspace);
-          this.userWorkspaces.push(userWorkspace);
-        });
+        const promise = this.cheWorkspace.fetchWorkspaceDetails(workspace.id)
+          .catch((error: any) => {
+            if (error && error.status === 304) {
+              return this.$q.when();
+            }
+            let message = error.data && error.data.message ? ' Reason: ' + error.data.message : '';
+            let workspaceName = this.cheWorkspace.getWorkspaceDataManager().getName(workspace);
+            this.cheNotification.showError('Failed to retrieve workspace ' + workspaceName + ' data.' + message) ;
+            return this.$q.reject(error);
+          })
+          .then(() => {
+            let userWorkspace = this.cheAPI.getWorkspace().getWorkspaceById(workspace.id);
+            this.getWorkspaceInfo(userWorkspace);
+            this.userWorkspaces.push(userWorkspace);
+            return this.$q.when();
+          });
         promises.push(promise);
       } else {
         let userWorkspace = this.workspacesById.get(workspace.id);
@@ -232,12 +247,15 @@ export class ListWorkspacesCtrl {
         this.cheListHelper.itemsSelectionStatus[workspaceId] = false;
 
         let workspace = this.cheWorkspace.getWorkspaceById(workspaceId);
-        workspaceName = workspace.config.name;
+        if (!workspace) {
+          return;
+        }
+        workspaceName = this.cheWorkspace.getWorkspaceDataManager().getName(workspace);
         let stoppedStatusPromise = this.cheWorkspace.fetchStatusChange(workspaceId, 'STOPPED');
 
         // stop workspace if it's status is RUNNING
         if (workspace.status === 'RUNNING') {
-          this.cheWorkspace.stopWorkspace(workspaceId, false);
+          this.cheWorkspace.stopWorkspace(workspaceId);
         }
 
         // delete stopped workspace

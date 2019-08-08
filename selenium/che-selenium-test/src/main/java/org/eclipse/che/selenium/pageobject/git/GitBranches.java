@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.pageobject.git;
+
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -44,8 +47,9 @@ public class GitBranches {
     String DELETE_BTN_ID = "git-branches-delete";
     String RENAME_BTN_ID = "git-branches-rename";
     String CLOSE_BTN_ID = "git-branches-close";
-    String DELBRANCH_FORM = "//div[text()='Delete branch']/ancestor::div[3]"; //TODO CREATE ID
+    String DELBRANCH_FORM = "//table[@title='Delete branch']"; // TODO CREATE ID
     String DELBRANCH_BUTN_OK = "ask-dialog-ok";
+    String SEARCH_FILTER_LABEL_ID = "gwt-debug-git-branches-search_filter";
   }
 
   @FindBy(id = Locators.MAIN_FORM_ID)
@@ -71,6 +75,9 @@ public class GitBranches {
 
   @FindBy(id = Locators.DELBRANCH_BUTN_OK)
   WebElement buttonOK;
+
+  @FindBy(id = Locators.SEARCH_FILTER_LABEL_ID)
+  WebElement searchFilterLabel;
 
   /** wait appearance of the IDE branches form */
   public void waitBranchesForm() {
@@ -246,5 +253,24 @@ public class GitBranches {
   /** click on rename button */
   public void clickRenameBtn() {
     renameBtn.click();
+  }
+
+  /**
+   * wait for the search filter label to be with given text.
+   *
+   * @param text text to check
+   */
+  public void waitSearchFilerWithText(String text) {
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(ExpectedConditions.textToBePresentInElement(searchFilterLabel, text));
+  }
+
+  /**
+   * Type text to the branch search filter.
+   *
+   * @param text typed text
+   */
+  public void typeSearchFilter(String text) {
+    seleniumWebDriver.getKeyboard().sendKeys(text);
   }
 }

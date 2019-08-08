@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,7 +15,6 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 import com.google.inject.persist.Transactional;
-import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
@@ -111,7 +111,9 @@ public class JpaAccountDao implements AccountDao {
 
   @Transactional
   protected void doCreate(AccountImpl account) {
-    managerProvider.get().persist(account);
+    final EntityManager manager = managerProvider.get();
+    manager.persist(account);
+    manager.flush();
   }
 
   @Transactional
@@ -127,10 +129,12 @@ public class JpaAccountDao implements AccountDao {
   }
 
   @Transactional
-  protected Optional<AccountImpl> doRemove(String id) {
+  protected void doRemove(String id) {
     final EntityManager manager = managerProvider.get();
-    final Optional<AccountImpl> account = Optional.ofNullable(manager.find(AccountImpl.class, id));
-    account.ifPresent(manager::remove);
-    return account;
+    AccountImpl account = manager.find(AccountImpl.class, id);
+    if (account != null) {
+      manager.remove(account);
+      manager.flush();
+    }
   }
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,29 +15,23 @@
  * Defines a directive for configuring factory form workspace.
  * @author Oleksii Orel
  */
-export class FactoryFromWorkspace {
+export class FactoryFromWorkspace implements ng.IDirective {
 
-  /**
-   * Default constructor that is using resource
-   * @ngInject for Dependency injection
-   */
-  constructor() {
-    this.restrict = 'E';
+  restrict = 'E';
 
-    this.templateUrl = 'app/factories/create-factory/workspaces-tab/factory-from-workspace.html';
-    this.replace = false;
+  templateUrl = 'app/factories/create-factory/workspaces-tab/factory-from-workspace.html';
+  replace = false;
 
-    this.controller = 'FactoryFromWorkspaceCtrl';
-    this.controllerAs = 'factoryFromWorkspaceCtrl';
+  controller = 'FactoryFromWorkspaceCtrl';
+  controllerAs = 'factoryFromWorkspaceCtrl';
 
-    this.bindToController = true;
+  bindToController = true;
 
-    // scope values
-    this.scope = {
-      isLoading: '=cdvyIsLoading',
-      isImporting: '=cdvyIsImporting',
-      factoryContent: '=cdvyFactoryContent'
-    };
-  }
+  // scope values
+  scope = {
+    isLoading: '=cdvyIsLoading',
+    isImporting: '=cdvyIsImporting',
+    factoryContent: '=cdvyFactoryContent'
+  };
 
 }

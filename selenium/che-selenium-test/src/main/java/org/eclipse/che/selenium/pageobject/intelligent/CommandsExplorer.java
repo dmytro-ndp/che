@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,12 +17,15 @@ import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsCons
 import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsConstants.CommandsGoals.DEPLOY_GOAL;
 import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsConstants.CommandsGoals.RUN_GOAL;
 import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsConstants.CommandsGoals.TEST_GOAL;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ELEMENT_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.concurrent.TimeUnit;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.utils.WaitUtils;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.openqa.selenium.By;
@@ -151,15 +155,16 @@ public class CommandsExplorer {
         .until(
             ExpectedConditions.visibilityOfElementLocated(
                 By.xpath("//div[@class='popupContent']/select[contains(@class,'gwt-ListBox')]")));
+    WebElement commandTypeElement =
+        new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+            .until(
+                ExpectedConditions.elementToBeClickable(getCommandTypeElementInContextMenu(type)));
+    commandTypeElement.click();
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.elementToBeClickable(getCommandTypeElementInContextMenu(type)))
-        .click();
-    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.elementToBeSelected(getCommandTypeElementInContextMenu(type)));
-    new Actions(seleniumWebDriver)
-        .doubleClick(getCommandTypeElementInContextMenu(type))
-        .build()
-        .perform();
+        .until(ExpectedConditions.elementToBeSelected(commandTypeElement));
+    // add timeout to be sure webelement ready to dbClick in some test got exception here
+    WaitUtils.sleepQuietly(200, TimeUnit.MILLISECONDS);
+    new Actions(seleniumWebDriver).doubleClick(commandTypeElement).perform();
   }
 
   /**
@@ -171,27 +176,46 @@ public class CommandsExplorer {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
         .until(ExpectedConditions.visibilityOf(getCommandByName(commandName)));
     new Actions(seleniumWebDriver).doubleClick(getCommandByName(commandName)).build().perform();
+    waitCommandIsSelected(commandName);
+  }
+
+  /**
+   * wait until command will be selected
+   *
+   * @param commandName visible name of command in the command explorer
+   */
+  public void waitCommandIsSelected(String commandName) {
+    String locator =
+        String.format(
+            "//div[@id='command_%s' and contains(normalize-space(@class), 'selected')]",
+            commandName);
+
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+        .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(locator)));
   }
 
   public void waitCommandInExplorerByName(String commandName) {
-    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+    new WebDriverWait(seleniumWebDriver, ELEMENT_TIMEOUT_SEC)
         .until(
             ExpectedConditions.visibilityOfElementLocated(
                 By.xpath("//div[@id='gwt-debug-navPanel']//div[text()='" + commandName + "']")));
   }
 
   public void cloneCommandByName(String commandName) {
+    selectCommandByName(commandName);
+    loader.waitOnClosed();
     new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
         .until(
             ExpectedConditions.visibilityOfElementLocated(
                 By.xpath(
                     "//div[@id='command_"
                         + commandName
-                        + "']//span[@id='commands_tree-button-duplicate']")))
+                        + "']//span[@id='commands_tree-button-duplicate']/*")))
         .click();
   }
 
   public void clickOnRemoveButtonInExplorerByName(String commandName) {
+    selectCommandByName(commandName);
     new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
         .until(
             ExpectedConditions.visibilityOfElementLocated(
@@ -211,13 +235,15 @@ public class CommandsExplorer {
     new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
         .until(ExpectedConditions.visibilityOf(getCommandByName(commandName)));
     new Actions(seleniumWebDriver).doubleClick(getCommandByName(commandName)).build().perform();
-    commandsEditor.waitActiveEditor();
+    commandsEditor.waitActive();
     commandsEditor.clickOnRunButton();
     commandsEditor.clickOnCancelCommandEditorButton();
   }
 
   public void deleteCommandByName(String commandName) {
+    selectCommandByName(commandName);
     loader.waitOnClosed();
+
     new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
         .until(
             ExpectedConditions.visibilityOfElementLocated(

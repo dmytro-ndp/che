@@ -1,15 +1,16 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
-import {CheWorkspace} from '../../../components/api/che-workspace.factory';
+import {CheWorkspace} from '../../../components/api/workspace/che-workspace.factory';
 import {CheNotification} from '../../../components/notification/che-notification.factory';
 
 /**
@@ -19,41 +20,43 @@ import {CheNotification} from '../../../components/notification/che-notification
  * @author Oleksii Orel
  */
 export class DashboardLastWorkspacesController {
+
+  static $inject = ['cheWorkspace', 'cheNotification'];
+
   cheWorkspace: CheWorkspace;
   cheNotification: CheNotification;
-  workspaces: Array<che.IWorkspace>;
-  isLoading: boolean;
+  workspaces: Array<che.IWorkspace> = [];
+  isLoading: boolean = true;
 
   /**
    * Default constructor
-   * @ngInject for Dependency injection
    */
   constructor(cheWorkspace: CheWorkspace, cheNotification: CheNotification) {
     this.cheWorkspace = cheWorkspace;
     this.cheNotification = cheNotification;
 
-    this.workspaces = cheWorkspace.getWorkspaces();
-
-    if (this.workspaces.length === 0) {
-      this.updateData();
-    }
+    this.loadData();
   }
 
   /**
-   * Update workspaces
+   * Load workspaces
    */
-  updateData(): void {
-    this.isLoading = true;
+  loadData(): void {
+    this.workspaces = this.cheWorkspace.getWorkspaces();
+
+    if (this.workspaces.length > 0) {
+      this.isLoading = false;
+      return;
+    }
+    
     let promise = this.cheWorkspace.fetchWorkspaces();
 
-    promise.then(() => {
+    promise.then((result) => {
+      this.workspaces = result;
       this.isLoading = false;
     }, (error: any) => {
       this.isLoading = false;
-      if (error.status === 304) {
-        return;
-      }
-      this.cheNotification.showError(error.data.message !== null ? error.data.message : 'Update workspaces failed.');
+      this.cheNotification.showError(error.data && error.data.message ? error.data.message : 'Update workspaces failed.');
     });
   }
 

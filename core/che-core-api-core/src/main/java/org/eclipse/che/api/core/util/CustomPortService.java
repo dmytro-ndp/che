@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -138,9 +139,11 @@ public class CustomPortService {
   }
 
   private int doAcquire(int min, int max) {
-    // Use this for getting ports for web applications but unfortunately get issue with browser cache.
+    // Use this for getting ports for web applications but unfortunately get issue with browser
+    // cache.
     // If different applications reuse the same port sometimes user can see previous application.
-    // Make number of port in 'more random' way instead of checking from min to max until find free port.
+    // Make number of port in 'more random' way instead of checking from min to max until find free
+    // port.
     final int m = min + rnd.nextInt((max - min) + 1);
     final boolean ev = (m % 2) == 0;
     int port;

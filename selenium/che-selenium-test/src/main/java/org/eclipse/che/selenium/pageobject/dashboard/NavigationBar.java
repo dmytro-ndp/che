@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,16 +13,17 @@ package org.eclipse.che.selenium.pageobject.dashboard;
 
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
+import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.List;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 /**
@@ -33,10 +35,14 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 public class NavigationBar {
 
   private final SeleniumWebDriver seleniumWebDriver;
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
 
   @Inject
-  public NavigationBar(SeleniumWebDriver seleniumWebDriver) {
+  public NavigationBar(
+      SeleniumWebDriver seleniumWebDriver, SeleniumWebDriverHelper seleniumWebDriverHelper) {
     this.seleniumWebDriver = seleniumWebDriver;
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
+
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
@@ -70,23 +76,28 @@ public class NavigationBar {
   List<WebElement> teamsList;
 
   public void waitNavigationBar() {
-    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOf(navigationBar));
+    seleniumWebDriverHelper.waitVisibility(navigationBar, LOAD_PAGE_TIMEOUT_SEC);
   }
 
   public void clickOnMenu(MenuItem menuItem) {
     String locator = String.format(Locators.MENU_ITEM_XPATH, menuItem.title);
+
+    waitNavigationBar();
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(locator)));
+        .until(visibilityOfElementLocated(By.xpath(locator)));
     seleniumWebDriver.findElement(By.xpath(locator)).click();
   }
 
-  public String getMenuCounterValue(MenuItem menuItem) {
+  // Example of the Organizations menu item 'Organizations (1)'
+  public int getMenuCounterValue(MenuItem menuItem) {
     String locator =
         String.format(Locators.MENU_ITEM_XPATH, menuItem.title) + Locators.COUNTER_XPATH;
-    String counter = seleniumWebDriver.findElement(By.xpath(locator)).getText();
-    counter = counter.trim().replace("(", "").replace(")", "");
-    return counter.equals("") ? "0" : counter;
+    String counter =
+        seleniumWebDriver
+            .findElement(By.xpath(locator))
+            .getText()
+            .replaceAll("\\s*[(]([0-9]+)[)]\\s*", "$1");
+    return counter.equals("") ? 0 : Integer.parseInt(counter);
   }
 
   public List<WebElement> getTeamListItems() {
@@ -100,7 +111,7 @@ public class NavigationBar {
   public void clickOnItemByName(String itemName) {
     String locator = String.format(Locators.MENU_ITEM_XPATH, itemName);
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(locator)));
+        .until(visibilityOfElementLocated(By.xpath(locator)));
     seleniumWebDriver.findElement(By.xpath(locator)).click();
   }
 }

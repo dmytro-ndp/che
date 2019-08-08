@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,7 +22,6 @@ export class ApplicationNotifications {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor () {
     this.notifications = [];
@@ -54,7 +54,7 @@ export class ApplicationNotifications {
    * @param removeOnRead if <code>true</code> - should be removed after has been shown to user
    * @returns {{notification}} notification
    */
-  addErrorNotification(title: string, content: string, removeOnRead = true): any {
+  addErrorNotification(title: string, content: string, removeOnRead: boolean = true): any {
     return this._addNotification('error', title, content, removeOnRead);
   }
 
@@ -66,7 +66,7 @@ export class ApplicationNotifications {
    * @param removeOnRead if <code>true</code> - should be removed after has been shown to user
    * @returns {{notification}} notification
    */
-  addWarningNotification(title: string, content: string, removeOnRead = true): any {
+  addWarningNotification(title: string, content: string, removeOnRead: boolean = true): any {
     return this._addNotification('warning', title, content, removeOnRead);
   }
 
@@ -78,7 +78,7 @@ export class ApplicationNotifications {
    * @param removeOnRead if <code>true</code> - should be removed after has been shown to user
    * @returns {{notification}} notification
    */
-  addInfoNotification(title: string, content: string, removeOnRead = true): any {
+  addInfoNotification(title: string, content: string, removeOnRead: boolean = true): any {
     return this._addNotification('info', title, content, removeOnRead);
   }
 

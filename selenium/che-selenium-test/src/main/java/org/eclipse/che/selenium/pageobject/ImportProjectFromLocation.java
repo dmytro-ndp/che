@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -55,7 +56,7 @@ public class ImportProjectFromLocation {
     String LOAD_REPO_BTN_ID = "gwt-debug-githubImporter-loadRepo";
     String IMPORT_BTN_ID = "importProjectWizard-importButton";
     String CLOSE_ICON_CSS =
-        "div#gwt-debug-importProjectWizard-window svg[width='8px'][height='8px']";
+        "table#gwt-debug-importProjectWizard-window svg[width='8px'][height='8px']";
     String CATEGORY_PANEL_XPATH =
         "//table[@id='gwt-debug-githubImporter-repositories']//div[text()='%s']";
     String BRANCH_NAME = "gwt-debug-file-importProject-branchName";
@@ -63,10 +64,7 @@ public class ImportProjectFromLocation {
     String IMPORT_BRANCH_CHECK_BOX = "gwt-debug-file-importProject-branch-input";
     String IMPORT_RECURSIVELY = "gwt-debug-file-importProject-recursive-label";
     String IMPORT_RECURSIVELY_CHECK_BOX = "gwt-debug-file-importProject-recursive-input";
-    String SUBVERSION_SOURCE_FIELD = "gwt-debug-projectWizard-SUBVERSION";
     String RELATIVE_PATH = "gwt-debug-file-importProject-relativePath";
-    String SVN_USER_NAME = "gwt-debug-file-importProject-username";
-    String SVN_PASSWORD = "gwt-debug-file-importProject-password";
   }
 
   @FindBy(id = Locators.MAIN_FORM_ID)
@@ -119,18 +117,6 @@ public class ImportProjectFromLocation {
 
   @FindBy(id = Locators.IMPORT_BRANCH_CHECK_BOX)
   WebElement importBranchCheckBox;
-
-  @FindBy(id = Locators.SUBVERSION_SOURCE_FIELD)
-  WebElement svnSourceField;
-
-  @FindBy(id = Locators.RELATIVE_PATH)
-  WebElement svnRelativePath;
-
-  @FindBy(id = Locators.SVN_USER_NAME)
-  WebElement svnUserName;
-
-  @FindBy(id = Locators.SVN_PASSWORD)
-  WebElement svnPassword;
 
   @FindBy(id = Locators.IMPORT_RECURSIVELY)
   WebElement importRecursively;
@@ -338,65 +324,6 @@ public class ImportProjectFromLocation {
   public void waitBranchIsNotSelected() {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
         .until((WebDriver webDriver) -> importBranchCheckBox.getAttribute("checked") == null);
-  }
-
-  /**
-   * type a relative path of Subversion repository URL into the 'Relative Path:' field
-   *
-   * @param path is the relative path the Subversion repository URL
-   */
-  public void typePathOfSvnRepoUrl(String path) {
-    new WebDriverWait(seleniumWebDriver, 10)
-        .until(ExpectedConditions.visibilityOf(svnRelativePath));
-    svnRelativePath.clear();
-    svnRelativePath.sendKeys(path);
-  }
-
-  /**
-   * wait main form, select the 'SUBVERSION' field type uri and name of importing project click on
-   * button import
-   *
-   * @param uri is user uri into URL: field
-   * @param nameOfProject is name of project into name: field
-   */
-  public void waitAndTypeImporterAsSvnInfo(String uri, String nameOfProject)
-      throws InterruptedException {
-    waitMainForm();
-    selectSvnSourceField();
-    typeURi(uri);
-    typeProjectName(nameOfProject);
-    clickImportBtn();
-    waitMainFormIsClosed();
-    loader.waitOnClosed();
-  }
-
-  /** wait and click on the 'SUBVERSION' source control field */
-  public void selectSvnSourceField() throws InterruptedException {
-    new WebDriverWait(seleniumWebDriver, 10).until(ExpectedConditions.visibilityOf(svnSourceField));
-    svnSourceField.click();
-    loader.waitOnClosed();
-  }
-
-  /**
-   * Note: Import project from Subversion repository with typing a relative path
-   *
-   * <p>wait main form, select the 'SUBVERSION' field type uri and relative path type name of
-   * importing project click on button import
-   *
-   * @param uri is user uri into URL: field
-   * @param path is relative path into Relative Path: field
-   * @param nameOfProject is name of project into name: field
-   */
-  public void waitAndTypeImporterAsSvnInfo(String uri, String path, String nameOfProject)
-      throws InterruptedException {
-    waitMainForm();
-    selectSvnSourceField();
-    typeURi(uri);
-    typePathOfSvnRepoUrl(path);
-    typeProjectName(nameOfProject);
-    clickImportBtn();
-    waitMainFormIsClosed();
-    loader.waitOnClosed();
   }
 
   /** wait appereance main widget, click on close ('x') icon and wait closing of the widget */

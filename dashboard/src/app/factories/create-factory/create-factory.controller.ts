@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,11 +19,15 @@ import {CheNotification} from '../../../components/notification/che-notification
  * @author Florent Benoit
  */
 export class CreateFactoryCtrl {
+
+  static $inject = ['$location', 'cheAPI', '$log', 'cheNotification', '$scope', '$filter', 'lodash', '$document'];
+
+  private gitLocation: string;
   private $location: ng.ILocationService;
   private $log: ng.ILogService;
   private cheAPI: CheAPI;
   private cheNotification: CheNotification;
-  private lodash: _.LoDashStatic;
+  private lodash: any;
   private $filter: ng.IFilterService;
   private $document: ng.IDocumentService;
   private isLoading: boolean;
@@ -40,9 +45,15 @@ export class CreateFactoryCtrl {
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($location: ng.ILocationService, cheAPI: CheAPI, $log: ng.ILogService, cheNotification: CheNotification, $scope: ng.IScope, $filter: ng.IFilterService, lodash: _.LoDashStatic, $document: ng.IDocumentService) {
+  constructor($location: ng.ILocationService,
+              cheAPI: CheAPI,
+              $log: ng.ILogService,
+              cheNotification: CheNotification,
+              $scope: ng.IScope,
+              $filter: ng.IFilterService,
+              lodash: any,
+              $document: ng.IDocumentService) {
     this.$location = $location;
     this.cheAPI = cheAPI;
     this.$log = $log;
@@ -53,33 +64,36 @@ export class CreateFactoryCtrl {
 
     this.isLoading = false;
     this.isImporting = false;
-
     this.stackRecipeMode = 'current-recipe';
-
     this.factoryContent = null;
 
-    $scope.$watch('createFactoryCtrl.factoryObject', () => {
+    const factoryObjectWatcher = $scope.$watch(() => {
+      return this.factoryObject;
+    }, () => {
       this.name = this.factoryObject && this.factoryObject.name ? this.factoryObject.name : '';
       this.factoryContent = this.$filter('json')(angular.fromJson(this.factoryObject));
     }, true);
-
-    $scope.$watch('createFactoryCtrl.gitLocation', (newValue: string) => {
+    const gitLocationWatcher = $scope.$watch(() => {
+      return this.gitLocation;
+    }, (newValue: string) => {
       // update underlying model
       // updating first project item
       if (!this.factoryObject) {
         let templateName = 'git';
-        let promise = this.cheAPI.getFactoryTemplate().fetchFactoryTemplate(templateName);
-
-        promise.then(() => {
-          let factoryContent = this.cheAPI.getFactoryTemplate().getFactoryTemplate(templateName);
-          this.factoryObject = angular.fromJson(factoryContent);
-          this.updateGitProjectLocation(newValue);
-        });
+        let factoryContent = this.cheAPI.getFactoryTemplate().getFactoryTemplate(templateName);
+        this.factoryObject = angular.fromJson(factoryContent);
+        this.updateGitProjectLocation(newValue);
+        this.updateGitProjectName(newValue);
       } else {
         this.updateGitProjectLocation(newValue);
+        this.updateGitProjectName(newValue);
       }
 
     }, true);
+    $scope.$on('$destroy', () => {
+      factoryObjectWatcher();
+      gitLocationWatcher();
+    });
   }
 
   /**
@@ -102,9 +116,31 @@ export class CreateFactoryCtrl {
    * @param location the new location
    */
   updateGitProjectLocation(location: string): void {
+    if (!this.factoryObject) {
+      return;
+    }
     let project = this.factoryObject.workspace.projects[0];
     project.source.type = 'git';
     project.source.location = location;
+  }
+
+  /**
+   * Update the source project name and path for Git factory
+   * @param location the new location
+   */
+  updateGitProjectName(location: string): void {
+    if (!this.factoryObject || !location) {
+      return;
+    }
+
+    const project = this.factoryObject.workspace.projects[0],
+      re = /([^\/]+?)(?:\.git)?$/i,
+      match = location.match(re);
+
+    if (match && match[1]) {
+      project.name = match[1];
+      project.path = `/${match[1]}`;
+    }
   }
 
   /**
@@ -115,15 +151,22 @@ export class CreateFactoryCtrl {
     if (!factoryContent) {
       return;
     }
-    if (this.name) {
-      // try to set factory name
-      try {
-        let factoryObject = angular.fromJson(factoryContent);
+
+    try {
+      let factoryObject = angular.fromJson(factoryContent);
+      if (this.name) {
+        // try to set factory name
         factoryObject.name = this.name;
-        factoryContent = angular.toJson(factoryObject);
-      } catch (e) {
-        this.$log.error(e);
       }
+      let projects: Array<che.IProject> = factoryObject.workspace.projects || [];
+      projects.forEach((project: che.IProject) => {
+        if (!project.type) {
+          project.type = 'blank'
+        }
+      });
+      factoryContent = angular.toJson(factoryObject);
+    } catch (e) {
+      this.$log.error(e);
     }
 
     this.isImporting = true;

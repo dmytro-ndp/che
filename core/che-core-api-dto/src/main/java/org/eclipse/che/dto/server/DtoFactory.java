@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -33,6 +34,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -101,12 +103,8 @@ public final class DtoFactory {
   // It helps avoid reflection when need create copy of exited DTO instance.
   private final Map<Class<?>, DtoProvider<?>> dtoImpl2Providers = new ConcurrentHashMap<>();
   private final Gson dtoGson =
-      new GsonBuilder()
-          .registerTypeAdapterFactory(
-              new NullAsEmptyTAF<>(Collection.class, Collections.emptyList()))
-          .registerTypeAdapterFactory(new NullAsEmptyTAF<>(Map.class, Collections.emptyMap()))
-          .registerTypeAdapterFactory(new DtoInterfaceTAF())
-          .create();
+      buildDtoParser(
+          ServiceLoader.load(TypeAdapterFactory.class).iterator(), new DtoInterfaceTAF());
 
   /**
    * Created deep copy of DTO object.
@@ -490,4 +488,29 @@ public final class DtoFactory {
   }
 
   private DtoFactory() {}
+
+  private static Gson buildDtoParser(
+      Iterator<TypeAdapterFactory> factoryIterator, TypeAdapterFactory... factories) {
+    GsonBuilder builder = new GsonBuilder();
+
+    for (Iterator<TypeAdapterFactory> it = factoryIterator; it.hasNext(); ) {
+      TypeAdapterFactory factory = it.next();
+      builder.registerTypeAdapterFactory(factory);
+    }
+
+    for (TypeAdapterFactory factory : factories) {
+      builder.registerTypeAdapterFactory(factory);
+    }
+
+    if (Boolean.valueOf(System.getenv("CHE_LEGACY__DTO__JSON__SERIALIZATION"))) {
+      builder.registerTypeAdapterFactory(
+          new NullAsEmptyTAF<>(Collection.class, Collections.emptyList()));
+      builder.registerTypeAdapterFactory(new NullAsEmptyTAF<>(Map.class, Collections.emptyMap()));
+    } else {
+      builder.registerTypeHierarchyAdapter(Collection.class, new NullOrEmptyCollectionAdapter());
+      builder.registerTypeHierarchyAdapter(Map.class, new NullOrEmptyMapAdapter());
+    }
+
+    return builder.create();
+  }
 }

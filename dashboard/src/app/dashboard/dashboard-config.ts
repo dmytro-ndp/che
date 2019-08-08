@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,8 +14,7 @@
 import {DashboardLastWorkspacesController} from './last-workspaces/last-workspaces.controller';
 import {DashboardLastWorkspaces} from './last-workspaces/last-workspaces.directive';
 import {DashboardPanel} from './dashboard-panel/dashboard-panel.directive';
-import {CheService} from '../../components/api/che-service.factory';
-import {CheWorkspace} from '../../components/api/che-workspace.factory';
+import {CheWorkspace} from '../../components/api/workspace/che-workspace.factory';
 
 export class DashboardConfig {
 
@@ -28,12 +28,12 @@ export class DashboardConfig {
     register.directive('dashboardPanel', DashboardPanel);
 
     // config routes
-    register.app.config(($routeProvider: ng.route.IRouteProvider) => {
+    register.app.config(['$routeProvider', ($routeProvider: che.route.IRouteProvider) => {
       $routeProvider.accessWhen('/', {
         title: 'Dashboard',
         templateUrl: 'app/dashboard/dashboard.html',
         resolve: {
-          check: ['$q', '$location', 'cheWorkspace', 'cheService', ($q: ng.IQService, $location: ng.ILocationService, cheWorkspace: CheWorkspace, cheService: CheService) => {
+          check: ['$q', '$location', 'cheWorkspace', ($q: ng.IQService, $location: ng.ILocationService, cheWorkspace: CheWorkspace) => {
             cheWorkspace.fetchWorkspaces().then(() => {
               if (cheWorkspace.getWorkspaces().length === 0) {
                 $location.path('/create-workspace');
@@ -43,13 +43,10 @@ export class DashboardConfig {
                 $location.path('/create-workspace');
               }
             });
-
-            return cheService.fetchServices();
           }]
         }
       });
-    })
-    ;
+    }]);
   }
 }
 

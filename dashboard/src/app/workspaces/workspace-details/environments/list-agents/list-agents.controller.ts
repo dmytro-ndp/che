@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,11 +21,12 @@ import {CheAPI} from '../../../../../components/api/che-api.factory';
  */
 
 /** List of the agents which shouldn't be switched by user */
-const DISABLED_AGENTS: Array<string> = ['org.eclipse.che.ws-agent',
-                                        'com.codenvy.rsync_in_machine',
+const DISABLED_AGENTS: Array<string> = ['com.codenvy.rsync_in_machine',
                                         'com.codenvy.external_rsync'];
 
 export class ListAgentsController {
+  static $inject = ['cheAPI'];
+
   cheAgent: CheAgent;
 
   agents: string[];
@@ -35,7 +37,6 @@ export class ListAgentsController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor(cheAPI: CheAPI) {
     this.cheAgent = cheAPI.getAgent();

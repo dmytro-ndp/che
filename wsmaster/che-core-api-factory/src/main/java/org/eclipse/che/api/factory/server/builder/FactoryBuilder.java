@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -30,8 +31,8 @@ import javax.inject.Singleton;
 import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.factory.FactoryParameter;
-import org.eclipse.che.api.core.model.project.ProjectConfig;
-import org.eclipse.che.api.core.model.project.SourceStorage;
+import org.eclipse.che.api.core.model.workspace.config.ProjectConfig;
+import org.eclipse.che.api.core.model.workspace.config.SourceStorage;
 import org.eclipse.che.api.factory.server.FactoryConstants;
 import org.eclipse.che.api.factory.server.LegacyConverter;
 import org.eclipse.che.api.factory.server.ValueHelper;
@@ -219,13 +220,14 @@ public class FactoryBuilder {
 
       // if value is null or empty collection or default value for primitives
       if (ValueHelper.isEmpty(parameterValue)) {
-        // field must not be a mandatory, unless it's ignored or deprecated or doesn't suit to the version
+        // field must not be a mandatory, unless it's ignored or deprecated or doesn't suit to the
+        // version
         if (Obligation.MANDATORY.equals(factoryParameter.obligation())
             && factoryParameter.deprecatedSince().compareTo(version) > 0
             && factoryParameter.ignoredSince().compareTo(version) > 0
             && method.getDeclaringClass().isAssignableFrom(allowedMethodsProvider)) {
           throw new ConflictException(
-              String.format(FactoryConstants.MISSING_MANDATORY_MESSAGE, method.getName()));
+              String.format(FactoryConstants.MISSING_MANDATORY_MESSAGE, fullName));
         }
       } else if (!method.getDeclaringClass().isAssignableFrom(allowedMethodsProvider)) {
         throw new ConflictException(
@@ -285,14 +287,14 @@ public class FactoryBuilder {
           if (!String.class.equals(secListParamClass) && !List.class.equals(secListParamClass)) {
             if (secListParamClass.isAnnotationPresent(DTO.class)) {
               List<Object> list = (List) parameterValue;
-              for (Object entry : list) {
+              for (int i = 0; i < list.size(); i++) {
                 validateCompatibility(
-                    entry,
+                    list.get(i),
                     object,
                     secListParamClass,
                     secListParamClass,
                     version,
-                    fullName,
+                    fullName + "[" + i + "]",
                     isUpdate);
               }
             } else {

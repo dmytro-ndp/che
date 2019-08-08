@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -52,6 +53,9 @@ public class MethodModel {
 
   /** Type of the field associated to this method. */
   private String fieldType;
+
+  /** Name of setter or with* method argument */
+  private String argumentName;
 
   /**
    * Build a new model around the DTO method.
@@ -144,5 +148,13 @@ public class MethodModel {
     return this.getName().equals(methodModelOther.getName())
         && this.returnType.equals(methodModelOther.returnType)
         && Arrays.equals(this.parameters.toArray(), methodModelOther.parameters.toArray());
+  }
+
+  public String getArgumentName() {
+    return argumentName;
+  }
+
+  public void setArgumentName(String argumentName) {
+    this.argumentName = argumentName;
   }
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,6 +20,9 @@ import {CheRemote} from '../../../../../components/api/remote/che-remote.factory
  * @author Florent Benoit
  */
 export class ExportWorkspaceDialogController {
+
+  static $inject = ['$q', '$filter', 'lodash', 'cheRemote', 'cheNotification', '$mdDialog', '$log', '$window', '$scope'];
+
   private $q: ng.IQService;
   private $filter: ng.IFilterService;
   private cheNotification: CheNotification;
@@ -26,7 +30,7 @@ export class ExportWorkspaceDialogController {
   private $mdDialog: ng.material.IDialogService;
   private cheRemote: CheRemote;
   private $window: ng.IWindowService;
-  private lodash: _.LoDashStatic;
+  private lodash: any;
 
   private editorOptions: any;
   private destination: string;
@@ -40,14 +44,18 @@ export class ExportWorkspaceDialogController {
   private workspaceDetails: any;
   private exportInCloudSteps: string;
 
-
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($q: ng.IQService, $filter: ng.IFilterService, lodash: _.LoDashStatic, cheRemote: CheRemote,
-              cheNotification: CheNotification, $mdDialog: ng.material.IDialogService, $log: ng.ILogService,
-              $window: ng.IWindowService, $scope: ng.IScope) {
+  constructor($q: ng.IQService,
+              $filter: ng.IFilterService,
+              lodash: any,
+              cheRemote: CheRemote,
+              cheNotification: CheNotification,
+              $mdDialog: ng.material.IDialogService,
+              $log: ng.ILogService,
+              $window: ng.IWindowService,
+              $scope: ng.IScope) {
     this.$q = $q;
     this.$filter = $filter;
     this.lodash = lodash;
@@ -72,7 +80,7 @@ export class ExportWorkspaceDialogController {
     this.copyOfConfig = this.getCopyOfConfig();
     this.exportConfigContent = this.$filter('json')(angular.fromJson(this.copyOfConfig), 2);
 
-    $scope.selectedIndex = this.destination === 'file' ? 0 : 1;
+    ($scope as any).selectedIndex = this.destination === 'file' ? 0 : 1;
   }
 
   /**
@@ -87,9 +95,12 @@ export class ExportWorkspaceDialogController {
    * @returns {*}
    */
   getCopyOfConfig() {
-    let copyOfConfig = angular.copy(this.workspaceDetails.config);
-
-    return this.removeLinks(copyOfConfig);
+    if (this.workspaceDetails.config) {
+      let copyOfConfig = angular.copy(this.workspaceDetails.config);
+      return this.removeLinks(copyOfConfig);
+    } else if (this.workspaceDetails.devfile) {
+      return this.workspaceDetails.devfile;
+    }
   }
 
   /**
@@ -101,7 +112,7 @@ export class ExportWorkspaceDialogController {
   removeLinks(object: any) {
     delete object.links;
 
-    return this.lodash.forEach(object, (value) => {
+    return this.lodash.forEach(object, (value: any) => {
       if (angular.isObject(value)) {
         return this.removeLinks(value);
       } else {

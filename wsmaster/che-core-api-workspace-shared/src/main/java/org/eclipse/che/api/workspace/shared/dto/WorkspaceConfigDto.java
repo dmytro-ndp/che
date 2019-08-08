@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,7 +20,6 @@ import org.eclipse.che.api.core.factory.FactoryParameter;
 import org.eclipse.che.api.core.model.workspace.WorkspaceConfig;
 import org.eclipse.che.api.core.rest.shared.dto.Hyperlinks;
 import org.eclipse.che.api.core.rest.shared.dto.Link;
-import org.eclipse.che.api.machine.shared.dto.CommandDto;
 import org.eclipse.che.dto.shared.DTO;
 
 /** @author andrew00x */
@@ -35,7 +35,7 @@ public interface WorkspaceConfigDto extends WorkspaceConfig, Hyperlinks {
   void setName(String name);
 
   @Override
-  @FactoryParameter(obligation = MANDATORY)
+  @FactoryParameter(obligation = OPTIONAL)
   String getDefaultEnv();
 
   void setDefaultEnv(String defaultEnvironment);
@@ -67,12 +67,20 @@ public interface WorkspaceConfigDto extends WorkspaceConfig, Hyperlinks {
   WorkspaceConfigDto withProjects(List<ProjectConfigDto> projects);
 
   @Override
-  @FactoryParameter(obligation = MANDATORY)
+  @FactoryParameter(obligation = OPTIONAL)
   Map<String, EnvironmentDto> getEnvironments();
 
   void setEnvironments(Map<String, EnvironmentDto> environments);
 
   WorkspaceConfigDto withEnvironments(Map<String, EnvironmentDto> environments);
+
+  @Override
+  @FactoryParameter(obligation = OPTIONAL)
+  Map<String, String> getAttributes();
+
+  void setAttributes(Map<String, String> attributes);
+
+  WorkspaceConfigDto withAttributes(Map<String, String> attributes);
 
   @Override
   WorkspaceConfigDto withLinks(List<Link> links);

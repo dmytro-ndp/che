@@ -1,11 +1,13 @@
-/**
- * ***************************************************************************** Copyright (c)
- * 2012-2016 Red Hat, Inc. All rights reserved. This program and the accompanying materials are made
- * available under the terms of the Eclipse Public License v1.0 which accompanies this distribution,
- * and is available at http://www.eclipse.org/legal/epl-v10.html
+/*
+ * Copyright (c) 2012-2016 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
  *
- * <p>Contributors: Red Hat, Inc. - initial API and implementation
- * *****************************************************************************
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.dto.generator;
 
@@ -69,7 +71,8 @@ public class DtoImplClientTemplate extends DtoImpl {
     emitDelegateMethods(builder);
     // "builder" method, it is method that set field and return "this" instance
     emitWithMethods(getters, dtoInterfaceName, builder);
-    // Implement withXXX methods that are declared directly in this DTO even if there are no any getter for the fields.
+    // Implement withXXX methods that are declared directly in this DTO even if there are no any
+    // getter for the fields.
     // Need that to override methods from super DTO and return correct type for with method.
     // @DTO
     // public interface A {
@@ -302,7 +305,8 @@ public class DtoImplClientTemplate extends DtoImpl {
 
   private void emitSerializer(List<Method> getters, StringBuilder builder) {
     builder.append("    public JSONObject toJsonObject() {\n");
-    // The default toJsonElement() returns JSONs for unsafe use thus 'any' properties should be copied
+    // The default toJsonElement() returns JSONs for unsafe use thus 'any' properties should be
+    // copied
     builder.append("      return toJsonObjectInt(true);\n");
     builder.append("    }\n");
     builder
@@ -521,7 +525,8 @@ public class DtoImplClientTemplate extends DtoImpl {
       }
     } else if (isAny(rawClass)) {
       // TODO a better method to clone instances of
-      // outVar = inVar == null ? JsonNull.INSTNACE : (copyJsons ? new JsonParser().parse(inVar) : inVar);
+      // outVar = inVar == null ? JsonNull.INSTNACE : (copyJsons ? new JsonParser().parse(inVar) :
+      // inVar);
       builder
           .append(i)
           .append("JSONValue ")
@@ -602,7 +607,8 @@ public class DtoImplClientTemplate extends DtoImpl {
 
   /** Generates a static factory method that creates a new instance based on a JsonElement. */
   private void emitDeserializer(List<Method> getters, StringBuilder builder) {
-    // The default fromJsonObject(json) works in unsafe mode and clones the JSON's for 'any' properties
+    // The default fromJsonObject(json) works in unsafe mode and clones the JSON's for 'any'
+    // properties
     builder
         .append("    public static ")
         .append(getImplClassName())
@@ -972,7 +978,8 @@ public class DtoImplClientTemplate extends DtoImpl {
             .append(".isBoolean().booleanValue() : null;\n");
       }
     } else if (isAny(rawClass)) {
-      // TODO JsonElement.deepCopy() is package-protected, JSONs are serialized to strings then parsed for copying them
+      // TODO JsonElement.deepCopy() is package-protected, JSONs are serialized to strings then
+      // parsed for copying them
       // outVar = copyJsons ? new JsonParser().parse(inVar) : inVar;
       builder.append(i).append("JSONValue ").append(outVar).append(" = ");
       appendCopyJsonExpression(inVar, builder).append(";\n");

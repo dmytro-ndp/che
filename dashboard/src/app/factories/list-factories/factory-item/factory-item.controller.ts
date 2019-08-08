@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,27 +12,44 @@
 'use strict';
 import {CheFactory} from '../../../../components/api/che-factory.factory';
 import {CheEnvironmentRegistry} from '../../../../components/api/environment/che-environment-registry.factory';
+import {LoadFactoryService} from '../../../factories/load-factory/load-factory.service';
 
 /**
  * Controller for a factory item.
  * @author Oleksii Orel
  */
 export class FactoryItemController {
+
+  static $inject = ['$location', 'cheFactory', 'cheEnvironmentRegistry', 'lodash', 'loadFactoryService'];
+
   private $location: ng.ILocationService;
   private cheFactory: CheFactory;
   private cheEnvironmentRegistry: CheEnvironmentRegistry;
-  private lodash: _.LoDashStatic;
+  private lodash: any;
   private factory: che.IFactory;
+  private loadFactoryService: LoadFactoryService;
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($location: ng.ILocationService, cheFactory: CheFactory, cheEnvironmentRegistry: CheEnvironmentRegistry, lodash: _.LoDashStatic) {
+  constructor($location: ng.ILocationService,
+              cheFactory: CheFactory,
+              cheEnvironmentRegistry: CheEnvironmentRegistry,
+              lodash: any,
+              loadFactoryService: LoadFactoryService) {
     this.$location = $location;
     this.cheFactory = cheFactory;
     this.cheEnvironmentRegistry = cheEnvironmentRegistry;
     this.lodash = lodash;
+    this.loadFactoryService =  loadFactoryService;
+  }
+
+  /**
+   * Returns `true` if supported version of factory workspace.
+   * @returns {boolean}
+   */
+  isSupportedVersion(): boolean {
+    return this.loadFactoryService.isSupportedVersion(this.factory);
   }
 
   /**
@@ -56,7 +74,7 @@ export class FactoryItemController {
    * @returns {string} display value of memory limit
    */
   getMemoryLimit(): string {
-    if (!this.factory.workspace) {
+    if (!this.factory.workspace || !this.factory.workspace.defaultEnv) {
       return '-';
     }
 

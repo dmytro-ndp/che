@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,6 +12,10 @@
 package org.eclipse.che.selenium.pageobject.git;
 
 import static java.util.Arrays.stream;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Git.GIT;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Git.RESET;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Git.Remotes.PUSH;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Git.Remotes.REMOTES_TOP;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -100,15 +105,15 @@ public class Git {
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
-  /** click on git-info panel tab, wait while info panel will open */
-  public void openGitInfoPanel() {
-    gitStatusBar.clickOnGitStatusBarTab();
-    gitStatusBar.waitGitStatusBarInfoPanel();
+  public enum ResetModes {
+    HARD,
+    SOFT,
+    MIXED
   }
 
   /** click on git-info panel tab, wait while info panel will close */
   public void closeGitInfoPanel() {
-    gitStatusBar.clickOnStatusBarMinimizeBtn();
+    gitStatusBar.waitAndClickOnStatusBarMinimizeBtn();
     gitStatusBar.waitCloseGitStatusBarInfoPanel();
   }
 
@@ -119,7 +124,7 @@ public class Git {
    */
   public void waitGitStatusBarWithMess(String expextedMess) {
     loader.waitOnClosed();
-    gitStatusBar.waitMesageIntoGitInfoPAnel(expextedMess);
+    gitStatusBar.waitMessageInGitTab(expextedMess);
   }
 
   /** wait and click on the 'navigate button' in the 'git console' */
@@ -160,6 +165,25 @@ public class Git {
     gitBranchesForm.waitBranchesForm();
     gitBranchesForm.waitBranchWithNameCheckoutState(nameOfTheBranch);
     loader.waitOnClosed();
+  }
+
+  /**
+   * wait for the branch search filter label to be with given text.
+   *
+   * @param text text to check
+   */
+  public void waitBranchSearchFilerWithText(String text) {
+    gitBranchesForm.waitBranchesForm();
+    gitBranchesForm.waitSearchFilerWithText(text);
+  }
+
+  /**
+   * Type text to the branch search filter.
+   *
+   * @param text typed text
+   */
+  public void typeToBranchSearchFilter(String text) {
+    gitBranchesForm.typeSearchFilter(text);
   }
 
   /** click on Close button and wait while form will be closed */
@@ -349,8 +373,17 @@ public class Git {
     gitCommit.waitMainFormCommit();
   }
 
+  /**
+   * check opened state of commit form
+   *
+   * @return true if widget is open
+   */
+  public boolean isCommitWidgetOpened() {
+    return gitCommit.isWidgetOpened();
+  }
+
   /** click on the "Cancel' button in tne 'Commit' main form wait the main form is closed */
-  public void clickOnCancelBtnComitForm() {
+  public void clickOnCancelBtnCommitForm() {
     gitCommit.clickOnCancelBtn();
     gitCommit.waitMainFormCommitIsClosed();
   }
@@ -364,6 +397,7 @@ public class Git {
     gitCommit.waitMainFormCommit();
     gitCommit.typeCommitMsg(text);
     gitCommit.clickOnBtnCommit();
+    loader.waitOnClosed();
     gitCommit.waitMainFormCommitIsClosed();
     loader.waitOnClosed();
   }
@@ -610,11 +644,6 @@ public class Git {
     gitCompare.waitGitCompareFormIsOpen();
   }
 
-  /** switch to the frame 'git compare' form */
-  public void toSwitchFrameGitCompareForm() {
-    gitCompare.toSwitchFrameGitCompareForm();
-  }
-
   /** wait the main form 'Git Compare' is closed */
   public void waitGitCompareFormIsClosed() {
     gitCompare.waitGitCompareFormIsClosed();
@@ -804,6 +833,16 @@ public class Git {
     stream(itemName).forEach(gitCommit::waitItemCheckBoxToBeUnSelected);
   }
 
+  /**
+   * Wait for item check-box in the 'Git changed files tree panel' in 'Commit' window to be
+   * indeterminate.
+   *
+   * @param itemName name of the item
+   */
+  public void waitItemCheckBoxToBeIndeterminateInCommitWindow(String... itemName) {
+    stream(itemName).forEach(gitCommit::waitItemCheckBoxToBeIndeterminate);
+  }
+
   /** Wait 'Reset to commit' window is open */
   public void waitResetWindowOpen() {
     gitReset.waitOpen();
@@ -829,6 +868,11 @@ public class Git {
     gitReset.selectSoftReset();
   }
 
+  /** Select 'soft' in the 'Reset Commit' window */
+  public void selectMixedReset() {
+    gitReset.selectMixedReset();
+  }
+
   /**
    * Wait commit is present in the 'Reset Commit' window
    *
@@ -844,7 +888,11 @@ public class Git {
    * @param numberLine number of line for commit
    */
   public void selectCommitResetWindow(int numberLine) {
-    gitReset.selectCommit(numberLine);
+    gitReset.selectCommitByNumber(numberLine);
+  }
+
+  public void selectResetToCommitByText(String text) {
+    gitReset.selectCommitByText(text);
   }
 
   /** wait the 'Checkout Reference' form is open */
@@ -884,7 +932,7 @@ public class Git {
    * @param fileName - name of the new file
    */
   public void createNewFileAndPushItToGitHub(String path, String fileName) {
-    projectExplorer.selectItem(path);
+    projectExplorer.waitAndSelectItem(path);
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -907,6 +955,17 @@ public class Git {
     waitPushFormToClose();
   }
 
+  public void pushChanges(boolean withForce) {
+    menu.runCommand(GIT, REMOTES_TOP, PUSH);
+    loader.waitOnClosed();
+    waitPushFormToOpen();
+    if (withForce) {
+      selectForcePushCheckBox();
+    }
+    clickPush();
+    waitPushFormToClose();
+  }
+
   public void importJavaApp(String url, String nameApp, String typeProject) {
     loader.waitOnClosed();
     menu.runCommand(
@@ -923,21 +982,34 @@ public class Git {
     loader.waitOnClosed();
   }
 
-  public void importJavaAppAndCheckMavenPluginBar(
-      String url, String nameApp, String typeProject, String expectedMessage) {
-    loader.waitOnClosed();
-    menu.runCommand(
-        TestMenuCommandsConstants.Workspace.WORKSPACE,
-        TestMenuCommandsConstants.Workspace.IMPORT_PROJECT);
-    importProject.waitAndTypeImporterAsGitInfo(url, nameApp);
-    projectWizard.waitCreateProjectWizardForm();
-    projectWizard.selectTypeProject(typeProject);
-    loader.waitOnClosed();
-    projectWizard.clickSaveButton();
-    mavenPluginStatusBar.waitExpectedTextInInfoPanel(expectedMessage);
-    loader.waitOnClosed();
-    projectWizard.waitCreateProjectWizardFormIsClosed();
-    projectExplorer.waitItem(nameApp);
-    loader.waitOnClosed();
+  /**
+   * Invoke the Reset to commit widget from Git -> Reset menu. Set the mode of resetting and click
+   * on the visible text. Click on reset button and check on closing the widget.
+   *
+   * @param mode select a mode of resetting in the Reset to commit widget.(switch radiobutton to
+   *     soft/mixed/hard items)
+   * @param textInResetToCommitWidget click on visible text in the Reset to commit widget. Note! If
+   *     we have 2 or more the same text fragments, will be selected the first fragment in DOM
+   */
+  public void doResetToCommitMessage(ResetModes mode, String textInResetToCommitWidget) {
+    menu.runCommand(GIT, RESET);
+
+    waitResetWindowOpen();
+
+    switch (mode) {
+      case SOFT:
+        selectSoftReset();
+        break;
+      case MIXED:
+        selectMixedReset();
+        break;
+      case HARD:
+        selectHardReset();
+        break;
+    }
+
+    selectResetToCommitByText(textInResetToCommitWidget);
+    clickResetBtn();
+    waitResetWindowClose();
   }
 }

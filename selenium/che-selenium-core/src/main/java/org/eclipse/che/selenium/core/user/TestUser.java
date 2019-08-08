@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.core.user;
+
+import java.io.IOException;
 
 /**
  * Represents a user in a test environment.
@@ -22,11 +25,8 @@ public interface TestUser {
   /** Returns user's password. */
   String getPassword();
 
-  /**
-   * Returns the current authentication token of the user. Will be changed after login/logout
-   * procedure.
-   */
-  String getAuthToken();
+  /** Re-login to product to obtain authentication token of the user. */
+  String obtainAuthToken();
 
   /** Return user's name. */
   String getName();
@@ -34,6 +34,6 @@ public interface TestUser {
   /** Return user's id. */
   String getId();
 
-  /** Deletes user and its stuff. */
-  void delete();
+  /** Remove user. */
+  void delete() throws IOException;
 }

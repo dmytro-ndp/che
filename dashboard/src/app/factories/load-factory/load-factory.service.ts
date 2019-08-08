@@ -1,35 +1,48 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
+import {WorkspacesService} from '../../workspaces/workspaces.service';
+
+export interface FactoryLoadingStep {
+  text: string;
+  logs: string;
+  hasError: boolean;
+  inProgressText?: string;
+}
 
 /**
  * This class is handling the service for the factory loading.
  * @author Ann Shumilova
  */
 export class LoadFactoryService {
+
+  static $inject = ['workspacesService'];
+
   private loadFactoryInProgress: boolean;
   private currentProgressStep: number;
-  private loadingSteps: Array<any>;
+  private loadingSteps: Array<FactoryLoadingStep>;
+  private workspacesService: WorkspacesService;
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor () {
+  constructor (workspacesService: WorkspacesService) {
+    this.workspacesService = workspacesService;
     this.loadFactoryInProgress = false;
     this.currentProgressStep = 0;
 
-
     this.loadingSteps = [
       {text: 'Loading factory', inProgressText: '', logs: '', hasError: false},
+      {text: 'Looking for devfile', inProgressText: '', logs: '', hasError: false},
       {text: 'Initializing workspace', inProgressText: 'Provision workspace and associating it with the existing user', logs: '', hasError: false},
       {text: 'Starting workspace runtime', inProgressText: 'Retrieving the stack\'s image and launching it', logs: '', hasError: false},
       {text: 'Starting workspace agent', inProgressText: 'Agents provide RESTful services like intellisense and SSH', logs: '', hasError: false},
@@ -55,9 +68,9 @@ export class LoadFactoryService {
   /**
    * Returns the information of the factory's loading steps.
    *
-   * @returns {Array<any>} loading steps of the factory
+   * @returns {Array<FactoryLoadingStep>} loading steps of the factory
    */
-  getFactoryLoadingSteps(): Array<any> {
+  getFactoryLoadingSteps(): Array<FactoryLoadingStep> {
     return this.loadingSteps;
   }
 
@@ -90,7 +103,7 @@ export class LoadFactoryService {
    * Reset the loading progress.
    */
   resetLoadProgress(): void {
-    this.loadingSteps.forEach((step) => {
+    this.loadingSteps.forEach((step: FactoryLoadingStep) => {
       step.logs = '';
     step.hasError = false;
   });
@@ -115,5 +128,20 @@ export class LoadFactoryService {
    */
   setLoadFactoryInProgress(value: boolean): void {
     this.loadFactoryInProgress = value;
+  }
+
+  /**
+   * Returns `true` if supported version of factory workspace.
+   * @param factory {che.IFactory}
+   * @returns {boolean}
+   */
+  isSupportedVersion(factory: che.IFactory): boolean {
+    if (!factory) {
+      return false;
+    }
+    return this.workspacesService.isSupportedVersion({ 
+      config: factory.workspace,
+      devfile: factory.devfile
+    });
   }
 }

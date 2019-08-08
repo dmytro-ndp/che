@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,28 +12,34 @@
 'use strict';
 
 /**
- * This class is handling the registered oAuth providers.
+ * This class is handling the registered OAuth providers.
  * @author Ann Shumilova
  */
 export class CheOAuthProvider {
 
+  static $inject = ['$http'];
+
+  private $http: ng.IHttpService;
+
+  private providersByName: Map<string, any>;
+  private providersPromise: ng.IPromise<any>;
+
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor ($http) {
+  constructor ($http: ng.IHttpService) {
     this.$http = $http;
     this.providersByName = new Map();
   }
 
-  fetchOAuthProviders() {
+  fetchOAuthProviders(): ng.IPromise<any> {
     if (this.providersPromise) {
       return this.providersPromise;
     }
 
     let promise = this.$http.get('/api/oauth/');
-    this.providersPromise = promise.then((providers) => {
-      providers.data.forEach((provider) => {
+    this.providersPromise = promise.then((providers: any) => {
+      providers.data.forEach((provider: any) => {
         this.providersByName.set(provider.name, provider);
       });
     });
@@ -42,9 +49,10 @@ export class CheOAuthProvider {
 
   /**
    * Checks whether provider is registered.
-   * @returns {Boolean|*}
+   * @param {string} name
+   * @returns {boolean}
    */
-  isOAuthProviderRegistered(name) {
+  isOAuthProviderRegistered(name: string): boolean {
     if (!this.providersByName) {
       return false;
     }

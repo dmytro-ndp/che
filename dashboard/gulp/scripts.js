@@ -1,9 +1,10 @@
 /*******************************************************************************
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,6 +15,7 @@
 var path = require('path');
 var gulp = require('gulp');
 var conf = require('./conf');
+var bootstrap = require('bootstrap-styl');
 
 var browserSync = require('browser-sync');
 var webpack = require('webpack-stream');
@@ -22,21 +24,64 @@ var $ = require('gulp-load-plugins')();
 
 function webpackWrapper(watch, test, callback) {
   var webpackOptions = {
-    resolve: { extensions: ['', '.ts'] },
+    context: __dirname,
+    resolve: {extensions: ['', '.ts', '.js', '.styl']},
     watch: watch,
     module: {
-      preLoaders: [{ test: /\.ts$/, exclude: /node_modules/, loader: 'tslint-loader'}],
-      loaders: [{ test: /\.ts$/, exclude: /node_modules/, loaders: ['ng-annotate', 'babel-loader', 'awesome-typescript-loader']}]
+      noParse: [/jsonlint/],
+      loaders: [
+        {
+          test: /\.min\.js\.map$/,
+          include: /node_modules\/angular-websocket\/dist/,
+          loader: 'file-loader'
+        },
+        {
+          test: /\.ts$/,
+          exclude: /node_modules/,
+          loaders: ['babel-loader', 'awesome-typescript-loader']
+        },
+        {
+          test: /\.css$/,
+          loaders: ['style-loader', 'css-loader']
+        },
+        {
+          test: /\.styl$/,
+          loaders: [
+            'style-loader',
+            'css-loader',
+            {
+              loader: 'stylus-loader?paths=node_modules/bootstrap-styl',
+              options: {
+                preferPathResolver: 'webpack',
+                use: [bootstrap()]
+              }
+            }
+          ]
+        },
+        {
+          test: /\.(svg|woff|woff2|ttf|eot|ico)$/,
+          loader: 'file-loader'
+        }, {
+          test: /\.html$/,
+          loaders: [
+            {
+              loader: 'ngtemplate-loader',
+              options: {
+                angular: true
+              }
+            }, 'html-loader']
+        }
+      ]
     },
-    output: { filename: 'index.module.js' }
+    output: {filename: 'index.module.js'}
   };
 
-  if(watch) {
+  if (watch) {
     webpackOptions.devtool = 'inline-source-map';
   }
 
-  var webpackChangeHandler = function(err, stats) {
-    if(err) {
+  var webpackChangeHandler = function (err, stats) {
+    if (err) {
       conf.errorHandler('Webpack')(err);
     }
     $.util.log(stats.toString({
@@ -46,13 +91,13 @@ function webpackWrapper(watch, test, callback) {
       version: false
     }));
     browserSync.reload();
-    if(watch) {
+    if (watch) {
       watch = false;
       callback();
     }
   };
 
-  var sources = [ path.join(conf.paths.src, '/app/index.module.ts') ];
+  var sources = [path.join(conf.paths.src, '/index.ts')];
   if (test) {
     sources.push(path.join(conf.paths.src, '/{app,components}/**/*.spec.ts'));
   }

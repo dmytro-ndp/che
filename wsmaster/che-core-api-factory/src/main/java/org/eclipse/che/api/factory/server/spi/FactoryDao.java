@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,6 +14,7 @@ package org.eclipse.che.api.factory.server.spi;
 import java.util.List;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.Page;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.factory.server.model.impl.FactoryImpl;
 import org.eclipse.che.commons.lang.Pair;
@@ -70,6 +72,16 @@ public interface FactoryDao {
   FactoryImpl getById(String id) throws NotFoundException, ServerException;
 
   /**
+   * Gets all factories of specified user.
+   *
+   * @param userId user identifier
+   * @return list factory instances, never null
+   * @throws NullPointerException when {@code userId} is null
+   * @throws ServerException when any other error occurs
+   */
+  Page<FactoryImpl> getByUser(String userId, int maxItems, long skipCount) throws ServerException;
+
+  /**
    * Gets the factories for the list of attributes.
    *
    * @param maxItems the maximum count of items to fetch
@@ -79,6 +91,6 @@ public interface FactoryDao {
    * @throws IllegalArgumentException when {@code skipCount} or {@code maxItems} is negative
    * @throws ServerException when any other error occurs
    */
-  List<FactoryImpl> getByAttribute(
+  Page<FactoryImpl> getByAttributes(
       int maxItems, int skipCount, List<Pair<String, String>> attributes) throws ServerException;
 }

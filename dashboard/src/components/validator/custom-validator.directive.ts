@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -31,15 +32,17 @@ export class CustomValidator implements ng.IDirective {
   require: string = 'ngModel';
 
   link($scope: ng.IScope, element: ng.IAugmentedJQuery, attrs: IAttributes, ctrl: INgModelController) {
+    const elementLocalName = element[0].localName;
     // validate only input or textarea elements
-    if ('input' === element[0].localName  || 'textarea' === element[0].localName) {
-
-      let $testScope = $scope.$parent ? $scope.$parent : $scope;
-
-      ctrl.$validators.customValidator = (modelValue: any) => {
-        return $testScope.$eval(attrs.customValidator, {$value: modelValue});
-      };
+    if ('input' !== elementLocalName && 'textarea' !== elementLocalName) {
+      return;
     }
+
+    const $testScope = $scope.$parent ? $scope.$parent : $scope;
+
+    ctrl.$validators.customValidator = (modelValue: any) => {
+      return $testScope.$eval(attrs.customValidator, {$value: modelValue});
+    };
   }
 }
 

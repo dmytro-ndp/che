@@ -1,9 +1,12 @@
-#!/bin/sh
+#!/bin/bash
+#
 # Copyright (c) 2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
+#
 
 base_dir=$(cd "$(dirname "$0")"; pwd)
 . "${base_dir}"/../build.include
@@ -17,15 +20,18 @@ if [ ! -d "${DIR}/../../assembly/assembly-main/target" ]; then
 fi
 
 # Use of folder
-BUILD_ASSEMBLY_ZIP=$(echo "${DIR}"/../../assembly/assembly-main/target/eclipse-che-*.tar.gz)
-LOCAL_ASSEMBLY_ZIP="${DIR}"/eclipse-che.tar.gz
+BUILD_ASSEMBLY_DIR=$(echo "${DIR}"/../../assembly/assembly-main/target/eclipse-che-*/eclipse-che-*/)
+LOCAL_ASSEMBLY_DIR="${DIR}"/eclipse-che
 
-if [ -f "${LOCAL_ASSEMBLY_ZIP}" ]; then
-  rm "${LOCAL_ASSEMBLY_ZIP}"
+if [ -d "${LOCAL_ASSEMBLY_DIR}" ]; then
+  rm -r "${LOCAL_ASSEMBLY_DIR}"
 fi
 
-echo "Linking assembly ${BUILD_ASSEMBLY_ZIP} --> ${LOCAL_ASSEMBLY_ZIP}"
-ln "${BUILD_ASSEMBLY_ZIP}" "${LOCAL_ASSEMBLY_ZIP}"
+echo "Copying assembly ${BUILD_ASSEMBLY_DIR} --> ${LOCAL_ASSEMBLY_DIR}"
+cp -r "${BUILD_ASSEMBLY_DIR}" "${LOCAL_ASSEMBLY_DIR}"
 
-init --name:server "$@" 
+init --name:server "$@"
 build
+
+#cleanUp
+rm -rf ${DIR}/eclipse-che

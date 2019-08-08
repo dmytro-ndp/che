@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,62 +13,52 @@ package org.eclipse.che.selenium.core.user;
 
 import static java.lang.String.format;
 
-import com.google.inject.Inject;
-import java.util.ArrayList;
-import java.util.List;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
+import java.io.IOException;
 import javax.annotation.PreDestroy;
-import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.api.core.BadRequestException;
+import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.selenium.core.client.TestAuthServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserServiceClient;
-import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.che.selenium.core.client.TestUserServiceClientFactory;
+import org.eclipse.che.selenium.core.provider.RemovableUserProvider;
 
-/** @author Anatolii Bazko */
+/**
+ * @author Anatolii Bazko
+ * @author Dmytro Nochevnov
+ * @author Anton Korneta
+ */
 public class TestUserImpl implements TestUser {
-  private static final Logger LOG = LoggerFactory.getLogger(TestUserImpl.class);
-
   private final String email;
   private final String password;
   private final String name;
   private final String id;
-  private final String authToken;
 
   private final TestUserServiceClient userServiceClient;
-  private final TestWorkspaceServiceClient workspaceServiceClient;
+  private final TestAuthServiceClient authServiceClient;
+  private final RemovableUserProvider testUserProvider;
 
-  @Inject
+  /** To instantiate user with specific name, e-mail, password and offline token. */
+  @AssistedInject
   public TestUserImpl(
-      TestUserServiceClient userServiceClient,
-      TestWorkspaceServiceClient workspaceServiceClient,
-      TestAuthServiceClient authServiceClient)
-      throws Exception {
-    this(
-        NameGenerator.generate("user", 6) + "@some.mail",
-        userServiceClient,
-        workspaceServiceClient,
-        authServiceClient);
-  }
+      TestUserServiceClientFactory testUserServiceClientFactory,
+      TestAuthServiceClient authServiceClient,
+      @Assisted RemovableUserProvider testUserProvider,
+      @Assisted("name") String name,
+      @Assisted("email") String email,
+      @Assisted("password") String password)
+      throws NotFoundException, ServerException, BadRequestException {
+    this.authServiceClient = authServiceClient;
+    this.testUserProvider = testUserProvider;
 
-  /** To instantiate user with specific e-mail. */
-  public TestUserImpl(
-      String email,
-      TestUserServiceClient userServiceClient,
-      TestWorkspaceServiceClient workspaceServiceClient,
-      TestAuthServiceClient authServiceClient)
-      throws Exception {
-    this.userServiceClient = userServiceClient;
-    this.workspaceServiceClient = workspaceServiceClient;
-
+    this.name = name;
     this.email = email;
-    this.password = NameGenerator.generate("Pwd1", 6);
-    this.name = email.split("@")[0];
+    this.password = password;
 
-    this.id = userServiceClient.create(email, password).getId();
-
-    LOG.info("User name='{}', password '{}', id='{}' has been created", name, password, id);
-
-    this.authToken = authServiceClient.login(getName(), getPassword());
+    this.userServiceClient = testUserServiceClientFactory.create(this);
+    this.id = userServiceClient.findByEmail(email).getId();
   }
 
   @Override
@@ -81,8 +72,12 @@ public class TestUserImpl implements TestUser {
   }
 
   @Override
-  public String getAuthToken() {
-    return authToken;
+  public String obtainAuthToken() {
+    try {
+      return authServiceClient.login(name, password);
+    } catch (Exception e) {
+      throw new RuntimeException(format("Error of log into the product as user '%s'.", name), e);
+    }
   }
 
   @Override
@@ -96,36 +91,15 @@ public class TestUserImpl implements TestUser {
   }
 
   @Override
-  @PreDestroy
-  public void delete() {
-    List<String> workspaces = new ArrayList<>();
-    try {
-      workspaces = workspaceServiceClient.getAll();
-    } catch (Exception e) {
-      LOG.error("Failed to get all workspaces.", e);
-    }
-
-    for (String workspace : workspaces) {
-      try {
-        workspaceServiceClient.delete(workspace, name);
-      } catch (Exception e) {
-        LOG.error(
-            format("User name='%s' failed to remove workspace name='%s'", workspace, name), e);
-      }
-    }
-
-    try {
-      userServiceClient.deleteByEmail(email);
-      LOG.info("User name='{}', id='{}' removed", name, id);
-    } catch (Exception e) {
-      LOG.error(format("Failed to remove user name='%s', id='%s'", email, id), e);
-    }
+  public String toString() {
+    return format(
+        "%s{name=%s, email=%s, id=%s}",
+        this.getClass().getSimpleName(), this.getName(), this.getEmail(), this.getId());
   }
 
   @Override
-  public String toString() {
-    return format(
-        "%s{name=%s, email=%s, password=%s}",
-        this.getClass().getSimpleName(), this.getName(), this.getEmail(), getPassword());
+  @PreDestroy
+  public void delete() throws IOException {
+    testUserProvider.delete();
   }
 }

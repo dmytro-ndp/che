@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,15 +13,15 @@
 
 const JSON_RPC_VERSION: string = '2.0';
 
+/* tslint:disable */
+export type communicationClientEvent = 'close' | 'error' | 'open' | 'response';
+/* tslint:enable */
+
 /**
  * Interface for communication between two entrypoints.
  * The implementation can be through websocket or http protocol.
  */
 export interface ICommunicationClient {
-  /**
-   * Process responses.
-   */
-  onResponse: Function;
   /**
    * Performs connections.
    *
@@ -31,6 +32,17 @@ export interface ICommunicationClient {
    * Close the connection.
    */
   disconnect(): void;
+  /**
+   * Adds listener on client event.
+   */
+  addListener(event: communicationClientEvent, handler: Function): void;
+  /**
+   * Removes listener.
+   *
+   * @param {communicationClientEvent} event
+   * @param {Function} handler
+   */
+  removeListener(event: communicationClientEvent, handler: Function): void;
   /**
    * Send pointed data.
    *
@@ -94,9 +106,9 @@ export class JsonRpcClient {
     this.pendingRequests = new Map<string, ng.IDeferred<any>>();
     this.notificationHandlers = new Map<string, Array<Function>>();
 
-    this.client.onResponse = (message: any): void => {
+    this.client.addListener('response', (message: any) => {
       this.processResponse(message);
-    };
+    });
   }
 
   /**
@@ -134,7 +146,6 @@ export class JsonRpcClient {
       method: method,
       params: params
     };
-
     this.client.send(request);
   }
 
@@ -164,7 +175,7 @@ export class JsonRpcClient {
   public removeNotificationHandler(method: string, handler: Function): void {
     let handlers = this.notificationHandlers.get(method);
 
-    if (handlers) {
+    if (handlers && handler) {
       handlers.splice(handlers.indexOf(handler), 1);
     }
   }

@@ -1,14 +1,18 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
+import {ChePreferences} from './che-preferences.factory';
+import {CheAPIBuilder} from './builder/che-api-builder.factory';
+import {CheHttpBackend} from './test/che-http-backend';
 
 /**
  * Test of the ChePreferences
@@ -18,22 +22,22 @@ describe('ChePreferences', function () {
   /**
    * Preferences Factory for the test
    */
-  var factory;
+  let factory;
 
   /**
    * API builder.
    */
-  var apiBuilder;
+  let apiBuilder;
 
   /**
    * Backend for handling http operations
    */
-  var httpBackend;
+  let httpBackend;
 
   /**
    * che backend
    */
-  var cheBackend;
+  let cheBackend;
 
   /**
    *  setup module
@@ -43,7 +47,9 @@ describe('ChePreferences', function () {
   /**
    * Inject factory and http backend
    */
-  beforeEach(inject(function (chePreferences, cheAPIBuilder, cheHttpBackend) {
+  beforeEach(inject(function (chePreferences: ChePreferences,
+                              cheAPIBuilder: CheAPIBuilder,
+                              cheHttpBackend: CheHttpBackend) {
     factory = chePreferences;
     apiBuilder = cheAPIBuilder;
     cheBackend = cheHttpBackend;
@@ -63,7 +69,7 @@ describe('ChePreferences', function () {
    */
   it('Fetch preferences', function () {
 
-      //{testURL: {username: 'testName',  password: 'testPassword'}} converted to base64
+      // {testURL: {username: 'testName',  password: 'testPassword'}} converted to base64
       let dockerCredentials = 'eyJ0ZXN0VVJMIjp7InVzZXJuYW1lIjoidGVzdE5hbWUiLCJwYXNzd29yZCI6InRlc3RQYXNzd29yZCJ9fQ==';
       let defaultPreferences = {
         pref1: 'value1',
@@ -89,9 +95,9 @@ describe('ChePreferences', function () {
       let preferences = factory.getPreferences();
       let registries = factory.getRegistries();
 
-      expect(preferences['pref1']).toEqual('value1');
-      expect(preferences['pref2']).toEqual('value2');
-      expect(preferences['dockerCredentials']).toEqual(dockerCredentials);
+      expect(preferences.pref1).toEqual('value1');
+      expect(preferences.pref2).toEqual('value2');
+      expect(preferences.dockerCredentials).toEqual(dockerCredentials);
       expect(registries[0].url).toEqual('testURL');
       expect(registries[0].username).toEqual('testName');
       expect(registries[0].password).toEqual('testPassword');
@@ -107,7 +113,7 @@ describe('ChePreferences', function () {
       let registryUrl = 'testURL';
       let userName = 'testName';
       let userPassword = 'testPassword';
-      //{testURL: {username: 'testName',  password: 'testPassword'}} converted to base64
+      // {testURL: {username: 'testName',  password: 'testPassword'}} converted to base64
       let dockerCredentials = 'eyJ0ZXN0VVJMIjp7InVzZXJuYW1lIjoidGVzdE5hbWUiLCJwYXNzd29yZCI6InRlc3RQYXNzd29yZCJ9fQ==';
 
       // setup backend
@@ -116,7 +122,7 @@ describe('ChePreferences', function () {
 
       // set default preferences
       factory._setPreferences(defaultPreferences);
-      //add registry
+      // add registry
       factory.addRegistry(registryUrl, userName, userPassword);
 
       // expecting POST
@@ -129,8 +135,8 @@ describe('ChePreferences', function () {
       let preferences = factory.getPreferences();
       let registries = factory.getRegistries();
 
-      expect(preferences['pref1']).toEqual('value1');
-      expect(preferences['dockerCredentials']).toEqual(dockerCredentials);
+      expect(preferences.pref1).toEqual('value1');
+      expect(preferences.dockerCredentials).toEqual(dockerCredentials);
       expect(registries[0].url).toEqual(registryUrl);
       expect(registries[0].username).toEqual(userName);
       expect(registries[0].password).toEqual(userPassword);
@@ -162,8 +168,8 @@ describe('ChePreferences', function () {
       // now, check preferences
       let preferences = factory.getPreferences();
 
-      expect(preferences['pref1']).toEqual(defaultPreferences['pref1']);
-      expect(preferences['pref2']).toEqual(newPreferences['pref2']);
+      expect(preferences.pref1).toEqual(defaultPreferences.pref1);
+      expect(preferences.pref2).toEqual(newPreferences.pref2);
     }
   );
 

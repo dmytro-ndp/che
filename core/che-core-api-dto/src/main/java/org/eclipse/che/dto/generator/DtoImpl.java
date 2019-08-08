@@ -1,11 +1,13 @@
-/**
- * ***************************************************************************** Copyright (c)
- * 2012-2016 Red Hat, Inc. All rights reserved. This program and the accompanying materials are made
- * available under the terms of the Eclipse Public License v1.0 which accompanies this distribution,
- * and is available at http://www.eclipse.org/legal/epl-v10.html
+/*
+ * Copyright (c) 2012-2016 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
  *
- * <p>Contributors: Red Hat, Inc. - initial API and implementation
- * *****************************************************************************
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.dto.generator;
 
@@ -190,8 +192,8 @@ abstract class DtoImpl {
     for (Class<?> superInterface : dto.getInterfaces()) {
       if (!superInterface.isAnnotationPresent(DTO.class)) {
         for (Method method : superInterface.getDeclaredMethods()) {
-          //when method is already present in map then child interface
-          //overrides it, which means that it should not be put into getters
+          // when method is already present in map then child interface
+          // overrides it, which means that it should not be put into getters
           if (isDtoGetter(method) && !getters.containsKey(method.getName())) {
             getters.put(method.getName(), method);
           }

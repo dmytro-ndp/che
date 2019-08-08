@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -24,10 +25,13 @@ export interface IMachinesListItem extends che.IWorkspaceRuntimeMachine {
  * @author Oleksii Kurinnyi
  */
 export class WorkspaceMachineConfigController {
+
+  static $inject = ['$mdDialog', '$q', '$scope', '$timeout', 'lodash', 'confirmDialogService'];
+
   $mdDialog: ng.material.IDialogService;
   $q: ng.IQService;
   $timeout: ng.ITimeoutService;
-  lodash: _.LoDashStatic;
+  lodash: any;
 
   timeoutPromise;
 
@@ -50,17 +54,33 @@ export class WorkspaceMachineConfigController {
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($mdDialog: ng.material.IDialogService, $q: ng.IQService, $scope: ng.IScope, $timeout: ng.ITimeoutService, lodash: _.LoDashStatic, confirmDialogService: ConfirmDialogService) {
+  constructor($mdDialog: ng.material.IDialogService,
+              $q: ng.IQService,
+              $scope: ng.IScope,
+              $timeout: ng.ITimeoutService,
+              lodash: any,
+              confirmDialogService: ConfirmDialogService) {
     this.$mdDialog = $mdDialog;
     this.$q = $q;
     this.$timeout = $timeout;
     this.lodash = lodash;
     this.confirmDialogService = confirmDialogService;
 
+    this.machineConfig = {};
     this.timeoutPromise = null;
+
+    const deRegistrationFn = $scope.$watch(() => {
+      return this.machine;
+    }, (newMachine: IEnvironmentManagerMachine, oldMachine: IEnvironmentManagerMachine) => {
+      if (angular.equals(newMachine, oldMachine)) {
+        return;
+      }
+      this.init();
+    }, true);
+
     $scope.$on('$destroy', () => {
+      deRegistrationFn();
       if (this.timeoutPromise) {
         $timeout.cancel(this.timeoutPromise);
       }
@@ -73,19 +93,15 @@ export class WorkspaceMachineConfigController {
    * Sets initial values
    */
   init(): void {
-    this.machine = this.lodash.find(this.machinesList, (machine: any) => {
-      return machine.name === this.machineName;
-    });
+    this.machineName = this.machine.name;
 
-    this.machineConfig = {
-      source: this.environmentManager.getSource(this.machine),
-      isDev: this.environmentManager.isDev(this.machine),
-      memoryLimitBytes: this.environmentManager.getMemoryLimit(this.machine),
-      servers: this.environmentManager.getServers(this.machine),
-      agents: this.environmentManager.getAgents(this.machine),
-      canEditEnvVariables: this.environmentManager.canEditEnvVariables(this.machine),
-      envVariables: this.environmentManager.getEnvVariables(this.machine)
-    };
+    this.machineConfig.source = this.environmentManager.getSource(this.machine);
+    this.machineConfig.isDev = this.environmentManager.isDev(this.machine);
+    this.machineConfig.memoryLimitBytes = this.environmentManager.getMemoryLimit(this.machine);
+    this.machineConfig.servers = this.environmentManager.getServers(this.machine);
+    this.machineConfig.installers = this.environmentManager.getAgents(this.machine);
+    this.machineConfig.canEditEnvVariables = this.environmentManager.canEditEnvVariables(this.machine);
+    this.machineConfig.envVariables = this.environmentManager.getEnvVariables(this.machine);
 
     this.newDev = this.machineConfig.isDev;
 
@@ -145,7 +161,7 @@ export class WorkspaceMachineConfigController {
    * @returns {Promise}
    */
   updateAgents(): ng.IPromise<any> {
-    this.environmentManager.setAgents(this.machine, this.machineConfig.agents);
+    this.environmentManager.setAgents(this.machine, this.machineConfig.installers);
     return this.doUpdateConfig();
   }
 
@@ -214,7 +230,7 @@ export class WorkspaceMachineConfigController {
   deleteMachine($event: MouseEvent): void {
     let promise;
     if (!this.machineConfig.isDev) {
-      promise = this.confirmDialogService.showConfirmDialog('Remove machine', 'Would you like to delete this machine?', 'Delete');
+      promise = this.confirmDialogService.showConfirmDialog('Remove container', 'Would you like to delete this container?', 'Delete');
     } else {
       promise = this.showDeleteDevMachineDialog($event);
     }

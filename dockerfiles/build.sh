@@ -1,13 +1,13 @@
-#!/bin/sh
+#!/bin/bash
+#
 # Copyright (c) 2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
-
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
+#
 # See: https://sipb.mit.edu/doc/safe-shell/
-set -e
-set -u
 
 . ./build.include
 init "$@"
@@ -25,7 +25,6 @@ build_directory() {
       if echo ${DIRECTORIES_PROCESSED} | grep "${required_directory}/"; then
         printf "${BROWN}${required_directory} dependency already built [SKIP]${NC}\n"
       else
-        DIRECTORIES_PROCESSED="${DIRECTORIES_PROCESSED} ${required_directory}/"
         printf "${PURPLE}Build required dependency ${required_directory}${NC}\n"
         build_directory "${required_directory}/"
       fi
@@ -35,6 +34,7 @@ build_directory() {
   # Calling build.sh
   if [ -e ${directory}/build.sh ] ; then
     ${directory}build.sh ${OPTIONS} ${ARGS}
+    DIRECTORIES_PROCESSED="${DIRECTORIES_PROCESSED} ${directory}"
   else
     printf "${RED}No build.sh in directory ${directory}${NC}\n"
     exit 2

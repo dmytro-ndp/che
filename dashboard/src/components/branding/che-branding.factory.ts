@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -29,8 +30,12 @@ interface IBranding {
     name?: string;
   };
   docs?: {
-    stack?: string;
+    devfile?: string;
     workspace?: string;
+    factory?: string;
+    organization?: string;
+    general?: string;
+    converting?: string;
   };
   workspace?: {
     priorityStacks?: Array<string>;
@@ -55,8 +60,12 @@ const DEFAULT_IDE_RESOURCES_PATH = '/_app/';
 const DEFAULT_OAUTH_DOCS = 'Configure OAuth in the che.properties file.';
 const DEFAULT_CLI_NAME = 'che.env';
 const DEFAULT_CLI_CONFIG_NAME = 'CHE';
-const DEFAULT_DOCS_STACK = '/docs/getting-started/runtime-stacks/index.html';
+const DEFAULT_DOCS_DEVFILE = '/docs/che-7/using-developer-environments-workspaces.html#making-a-workspace-portable-using-a-devfile_using-developer-environments-workspaces';
 const DEFAULT_DOCS_WORKSPACE = '/docs/getting-started/intro/index.html';
+const DEFAULT_DOCS_ORGANIZATION = '/docs/organizations.html';
+const DEFAULT_DOCS_FACTORY = '/docs/factories-getting-started.html';
+const DEFAULT_DOCS_GENERAL = '/docs';
+const DEFAULT_DOCS_CONVERTING = '/docs/che-7/converting-a-che-6-workspace-to-a-che-7-devfile.html';
 const DEFAULT_WORKSPACE_PRIORITY_STACKS = ['Java', 'Java-MySQL', 'Blank'];
 const DEFAULT_WORKSPACE_DEFAULT_STACK = 'java-mysql';
 const DEFAULT_WORKSPACE_CREATION_LINK = '#/create-workspace';
@@ -68,6 +77,9 @@ const DEFAULT_WEBSOCKET_CONTEXT = '/api/websocket';
  * @author Oleksii Orel
  */
 export class CheBranding {
+
+  static $inject = ['$http', '$rootScope', 'cheService'];
+
   private $rootScope: che.IRootScopeService;
   private $http: ng.IHttpService;
   private cheService: CheService;
@@ -76,7 +88,6 @@ export class CheBranding {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($http: ng.IHttpService, $rootScope: che.IRootScopeService, cheService: CheService) {
     this.$http = $http;
@@ -93,7 +104,7 @@ export class CheBranding {
   updateVersion(): void {
     this.cheService.fetchServicesInfo().then(() => {
       let info = this.cheService.getServicesInfo();
-      this.$rootScope.productVersion = (info && info.implementationVersion) ? info.implementationVersion : '';
+      this.$rootScope.productVersion = (info && info.buildInfo) ? info.buildInfo : '';
     });
   }
 
@@ -140,6 +151,9 @@ export class CheBranding {
    */
   registerCallback(callbackId: string, callback: Function): void {
     this.callbacks.set(callbackId, callback);
+    if (this.$rootScope.branding) {
+      callback(this.$rootScope.branding);
+    }
   }
 
   /**
@@ -206,7 +220,6 @@ export class CheBranding {
    * @returns {string}
    */
   getWebsocketContext(): string {
-    debugger;
     return this.brandingData.websocketContext ? this.brandingData.websocketContext : DEFAULT_WEBSOCKET_CONTEXT;
   }
 
@@ -276,12 +289,16 @@ export class CheBranding {
 
   /**
    * Returns object with docs URLs.
-   * @returns {{stack: string, workspace: string}}
+   * @returns {{devfile: string, workspace: string, factory: string, organization: string, general: string, converting: string}}
    */
-  getDocs(): { stack: string; workspace: string } {
+  getDocs(): { devfile: string; workspace: string; factory: string; organization: string; general: string, converting: string} {
     return {
-      stack: this.brandingData.docs && this.brandingData.docs.stack ? this.brandingData.docs.stack : DEFAULT_DOCS_STACK,
-      workspace: this.brandingData.docs && this.brandingData.docs.workspace ? this.brandingData.docs.workspace : DEFAULT_DOCS_WORKSPACE
+      devfile: this.brandingData.docs && this.brandingData.docs.devfile ? this.brandingData.docs.devfile : DEFAULT_DOCS_DEVFILE,
+      workspace: this.brandingData.docs && this.brandingData.docs.workspace ? this.brandingData.docs.workspace : DEFAULT_DOCS_WORKSPACE,
+      factory: this.brandingData.docs && this.brandingData.docs.factory ? this.brandingData.docs.factory : DEFAULT_DOCS_FACTORY,
+      organization: this.brandingData.docs && this.brandingData.docs.organization ? this.brandingData.docs.organization : DEFAULT_DOCS_ORGANIZATION,
+      general: this.brandingData.docs && this.brandingData.docs.general ? this.brandingData.docs.general : DEFAULT_DOCS_GENERAL,
+      converting: this.brandingData.docs && this.brandingData.docs.converting ? this.brandingData.docs.converting : DEFAULT_DOCS_CONVERTING
     };
   }
 

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,6 +15,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Module;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.Set;
 import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
@@ -30,6 +32,11 @@ public class ModuleScanner implements ServletContainerInitializer {
   @VisibleForTesting static final List<Module> modules = new ArrayList<>();
 
   public static List<Module> findModules() {
+    // also search if classes are provided through service loader mechanism
+    // It's useful when the scanning is disabled or ServletContainerInitializer is disabled.
+    // onStartup may not be called at all so it's another way of plugging modules.
+    ServiceLoader<ModuleFinder> moduleFinderServiceLoader = ServiceLoader.load(ModuleFinder.class);
+    moduleFinderServiceLoader.forEach(moduleFinder -> modules.addAll(moduleFinder.getModules()));
     return new ArrayList<>(modules);
   }
 

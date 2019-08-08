@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.workspace.server.model.impl;
+
+import static java.lang.String.format;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,8 +25,10 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.MapKeyColumn;
+import javax.persistence.PrePersist;
+import javax.persistence.PreUpdate;
 import javax.persistence.Table;
-import org.eclipse.che.api.core.model.project.SourceStorage;
+import org.eclipse.che.api.core.model.workspace.config.SourceStorage;
 
 /**
  * Data object for {@link SourceStorage}.
@@ -47,9 +52,8 @@ public class SourceStorageImpl implements SourceStorage {
 
   @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(
-    name = "sourcestorage_parameters",
-    joinColumns = @JoinColumn(name = "sourcestorage_id")
-  )
+      name = "sourcestorage_parameters",
+      joinColumns = @JoinColumn(name = "sourcestorage_id"))
   @MapKeyColumn(name = "parameters_key")
   @Column(name = "parameters")
   private Map<String, String> parameters;
@@ -61,6 +65,20 @@ public class SourceStorageImpl implements SourceStorage {
     this.location = location;
     if (parameters != null) {
       this.parameters = new HashMap<>(parameters);
+    }
+  }
+
+  @PrePersist
+  @PreUpdate
+  public void validate() {
+    if (parameters != null) {
+      for (Map.Entry<String, String> e : parameters.entrySet()) {
+        if (e.getValue() == null) {
+          throw new IllegalStateException(
+              format(
+                  "Parameter '%s' of the source %s is null. This is illegal.", e.getKey(), this));
+        }
+      }
     }
   }
 

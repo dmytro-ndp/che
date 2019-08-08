@@ -6,10 +6,10 @@
   "favicon": "favicon.ico",
   "loader": "loader.svg",
   "ideResources": "/_app/",
-  "websocketContext": "/wsmaster/websocket",
+  "websocketContext": "/api/websocket",
   "helpPath": "https://www.eclipse.org/che/",
   "helpTitle": "Community",
-  "supportEmail": "wish@codenvy.com",
+  "supportEmail": "che-dev@eclipse.org",
   "oauthDocs": "Configure OAuth in the che.properties file.",
   "workspace": {
     "priorityStacks": ["Java", "Java-MySQL", "Blank"],
@@ -20,7 +20,11 @@
     "name" : "CHE"
   },
   "docs" : {
-    "stack" : "/docs/devops/runtime-stacks/index.html",
-    "workspace" : "/docs/devops/intro/index.html"
+    "devfile" : "/docs/che-7/using-developer-environments-workspaces.html#making-a-workspace-portable-using-a-devfile_using-developer-environments-workspaces",
+    "workspace" : "/docs/what-are-workspaces.html",
+    "factory" : "/docs/factories-getting-started.html",
+    "organization": "/docs/organizations.html",
+    "converting": "/docs/che-7/converting-a-che-6-workspace-to-a-che-7-devfile.html",
+    "general": "/docs"
   }
 }

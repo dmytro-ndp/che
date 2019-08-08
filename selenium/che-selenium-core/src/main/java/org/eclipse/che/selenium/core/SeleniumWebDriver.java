@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,21 +12,35 @@
 package org.eclipse.che.selenium.core;
 
 import static java.lang.String.format;
-import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.EXPECTED_MESS_IN_CONSOLE_SEC;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.APPLICATION_START_TIMEOUT_SEC;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOADER_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.utils.WaitUtils.sleepQuietly;
+import static org.openqa.selenium.support.ui.ExpectedConditions.frameToBeAvailableAndSwitchToIt;
+import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
-import javax.inject.Named;
+import java.util.logging.Level;
+import org.eclipse.che.api.core.BadRequestException;
+import org.eclipse.che.api.core.ConflictException;
+import org.eclipse.che.api.core.ForbiddenException;
+import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.ServerException;
+import org.eclipse.che.api.core.UnauthorizedException;
+import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.selenium.core.constant.TestBrowser;
+import org.eclipse.che.selenium.core.utils.DockerUtil;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
@@ -38,10 +53,12 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.interactions.HasInputDevices;
 import org.openqa.selenium.interactions.Keyboard;
 import org.openqa.selenium.interactions.Mouse;
+import org.openqa.selenium.logging.LogType;
+import org.openqa.selenium.logging.LoggingPreferences;
+import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedCondition;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,19 +77,27 @@ public class SeleniumWebDriver
 
   private TestBrowser browser;
   private boolean gridMode;
-  private String webDriverVersion;
-
+  private String gridNodeContainerId;
+  private String webDriverPort;
   private final RemoteWebDriver driver;
+  private final HttpJsonRequestFactory httpJsonRequestFactory;
+  private final DockerUtil dockerUtil;
+  private final String downloadDir;
 
   @Inject
   public SeleniumWebDriver(
       @Named("sys.browser") TestBrowser browser,
       @Named("sys.driver.port") String webDriverPort,
       @Named("sys.grid.mode") boolean gridMode,
-      @Named("sys.driver.port") String webDriverVersion) {
+      HttpJsonRequestFactory httpJsonRequestFactory,
+      DockerUtil dockerUtil,
+      @Named("tests.tmp_dir") String downloadDir) {
     this.browser = browser;
+    this.webDriverPort = webDriverPort;
     this.gridMode = gridMode;
-    this.webDriverVersion = webDriverVersion;
+    this.httpJsonRequestFactory = httpJsonRequestFactory;
+    this.dockerUtil = dockerUtil;
+    this.downloadDir = downloadDir;
 
     try {
       URL webDriverUrl =
@@ -179,45 +204,12 @@ public class SeleniumWebDriver
         return doCreateDriver(webDriverUrl);
       } catch (WebDriverException e) {
         if (i++ >= MAX_ATTEMPTS) {
-          String tip = getWebDriverInitTip();
-          LOG.error(format("%s.%s", e.getMessage(), tip), e);
-          throw new RuntimeException(format("Web driver initialization failed.%s", tip), e);
+          throw e;
         }
       }
 
       sleepQuietly(DELAY_IN_SECONDS);
     }
-  }
-
-  private String getWebDriverInitTip() {
-    if (!gridMode && browser.equals(TestBrowser.GOOGLE_CHROME)) {
-      return getGoogleChromeTip();
-    }
-
-    return "";
-  }
-
-  private String getGoogleChromeTip() {
-    try {
-      URL webDriverNotes =
-          new URL(
-              String.format(
-                  "http://chromedriver.storage.googleapis.com/%s/notes.txt", webDriverVersion));
-      String supportedVersions = readSupportedVersionInfoForGoogleDriver(webDriverNotes);
-      if (supportedVersions != null) {
-        return format(
-            "%n(Tip: there is Chrome Driver v.%s used, and it requires local Google Chrome of v.%s)",
-            webDriverVersion, supportedVersions);
-      }
-    } catch (java.io.IOException e) {
-      LOG.warn(
-          "It's impossible to read info about versions of browser which Chrome Driver supports.",
-          e);
-    }
-
-    return format(
-        "%n(Tip: check manually if local Google Chrome browser supported by Chrome Driver v.%s at official site)",
-        webDriverVersion);
   }
 
   /**
@@ -250,12 +242,29 @@ public class SeleniumWebDriver
 
     switch (browser) {
       case GOOGLE_CHROME:
+        LoggingPreferences loggingPreferences = new LoggingPreferences();
+        loggingPreferences.enable(LogType.PERFORMANCE, Level.ALL);
+        loggingPreferences.enable(LogType.BROWSER, Level.ALL);
+
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--no-sandbox");
         options.addArguments("--dns-prefetch-disable");
+        options.addArguments("--ignore-certificate-errors");
+
+        // set parameters required for automatic download capability
+        Map<String, Object> chromePrefs = new HashMap<>();
+        chromePrefs.put("download.default_directory", downloadDir);
+        chromePrefs.put("download.prompt_for_download", false);
+        chromePrefs.put("download.directory_upgrade", true);
+        chromePrefs.put("safebrowsing.enabled", true);
+        chromePrefs.put("profile.default_content_settings.popups", 0);
+        chromePrefs.put("plugins.plugins_disabled", "['Chrome PDF Viewer']");
+        options.setExperimentalOption("prefs", chromePrefs);
 
         capability = DesiredCapabilities.chrome();
         capability.setCapability(ChromeOptions.CAPABILITY, options);
+        capability.setCapability(CapabilityType.LOGGING_PREFS, loggingPreferences);
+        capability.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
         break;
 
       default:
@@ -265,6 +274,16 @@ public class SeleniumWebDriver
     }
 
     RemoteWebDriver driver = new RemoteWebDriver(webDriverUrl, capability);
+    if (driver.getErrorHandler().isIncludeServerErrors()
+        && driver.getCapabilities().getCapability("message") != null) {
+      String errorMessage =
+          format(
+              "Web driver creation error occurred: %s",
+              driver.getCapabilities().getCapability("message"));
+      LOG.error(errorMessage);
+      throw new RuntimeException(errorMessage);
+    }
+
     driver.manage().window().setSize(new Dimension(1920, 1080));
 
     return driver;
@@ -283,8 +302,6 @@ public class SeleniumWebDriver
 
   /**
    * calculate name of workspace from browser url cut symbols from end of slash symbol ("/") to end
-   *
-   * @return
    */
   public String getWorkspaceNameFromBrowserUrl() {
     String currentUrl = getCurrentUrl();
@@ -308,12 +325,59 @@ public class SeleniumWebDriver
   }
 
   public void switchFromDashboardIframeToIde() {
-    new WebDriverWait(this, EXPECTED_MESS_IN_CONSOLE_SEC)
-        .until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(By.id("ide-application-iframe")));
+    switchFromDashboardIframeToIde(APPLICATION_START_TIMEOUT_SEC);
   }
 
   public void switchFromDashboardIframeToIde(int timeout) {
-    new WebDriverWait(this, timeout)
-        .until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(By.id("ide-application-iframe")));
+    wait(timeout).until(visibilityOfElementLocated(By.id("ide-application-iframe")));
+
+    wait(LOADER_TIMEOUT_SEC)
+        .until(
+            (ExpectedCondition<Boolean>)
+                driver ->
+                    (((JavascriptExecutor) driver)
+                            .executeScript("return angular.element('body').scope().showIDE"))
+                        .toString()
+                        .equals("true"));
+
+    wait(timeout).until(frameToBeAvailableAndSwitchToIt(By.id("ide-application-iframe")));
+  }
+
+  private WebDriverWait wait(int timeOutInSeconds) {
+    return new WebDriverWait(this, timeOutInSeconds);
+  }
+
+  public String getGridNodeContainerId() throws IOException {
+    if (!gridMode) {
+      throw new UnsupportedOperationException("We can't get grid node container id in local mode.");
+    }
+
+    if (gridNodeContainerId == null) {
+      String getGridNodeInfoUrl =
+          format(
+              "http://localhost:%s/grid/api/testsession?session=%s",
+              webDriverPort, driver.getSessionId());
+
+      Map<String, String> gridNodeInfo;
+      try {
+        gridNodeInfo = httpJsonRequestFactory.fromUrl(getGridNodeInfoUrl).request().asProperties();
+      } catch (ServerException
+          | UnauthorizedException
+          | ForbiddenException
+          | NotFoundException
+          | ConflictException
+          | BadRequestException e) {
+        throw new IOException(e);
+      }
+
+      if (!gridNodeInfo.containsKey("proxyId")) {
+        throw new IOException("Proxy ID of grid node wasn't found.");
+      }
+
+      URL proxyId = new URL(gridNodeInfo.get("proxyId"));
+      gridNodeContainerId = dockerUtil.findGridNodeContainerByIp(proxyId.getHost());
+    }
+
+    return gridNodeContainerId;
   }
 }

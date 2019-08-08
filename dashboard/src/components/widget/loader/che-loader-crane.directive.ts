@@ -1,106 +1,137 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
 
+interface ICheLoaderCraneScope extends ng.IScope {
+  step: string;
+  allSteps: string[];
+  excludeSteps: string[];
+  switchOnIteration: boolean;
+}
+
 /**
  * Defines a directive for animating iteration process
  * @author Oleksii Kurinnyi
  */
-export class CheLoaderCrane {
+export class CheLoaderCrane implements ng.IDirective {
+
+  static $inject = ['$q', '$timeout', '$window'];
+
+  $q: ng.IQService;
+  $timeout: ng.ITimeoutService;
+  $window: ng.IWindowService;
+
+  restrict = 'E';
+  replace = true;
+  templateUrl = 'components/widget/loader/che-loader-crane.html';
+
+  // scope values
+  scope = {
+    step: '@cheStep',
+    allSteps: '=cheAllSteps',
+    excludeSteps: '=cheExcludeSteps',
+    switchOnIteration: '=?cheSwitchOnIteration'
+  };
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($timeout, $window) {
+  constructor($q: ng.IQService, $timeout: ng.ITimeoutService, $window: ng.IWindowService) {
+    this.$q = $q;
     this.$timeout = $timeout;
     this.$window = $window;
-    this.restrict = 'E';
-    this.replace = true;
-    this.templateUrl = 'components/widget/loader/che-loader-crane.html';
-
-    // scope values
-    this.scope = {
-      step: '@cheStep',
-      allSteps: '=cheAllSteps',
-      excludeSteps: '=cheExcludeSteps',
-      switchOnIteration: '=?cheSwitchOnIteration'
-    };
   }
 
-  link($scope, element) {
-    let jqCrane = element.find('.che-loader-crane'),
-      craneHeight = jqCrane.height(),
-      craneWidth = jqCrane.width(),
-      jqCraneLoad = element.find('#che-loader-crane-load'),
-      jqCraneScaleWrap = element.find('.che-loader-crane-scale-wrapper'),
+  link($scope: ICheLoaderCraneScope, $element: ng.IAugmentedJQuery): void {
+    const jqCraneScaleWrap = $element.find('.che-loader-crane-scale-wrapper'),
       jqCreateProjectContentPage = angular.element('#create-project-content-page'),
-      jqBody = angular.element(document).find('body'),
-      scaleStep = 0.05,
-      scaleMin = 0.6,
+      jqBody = angular.element(document).find('body');
 
-      newStep,
-      animationStopping = false,
-      animationRunning = false;
+    const stepsNumber = $scope.allSteps.length - $scope.excludeSteps.length;
+    const loader = new Loader(this.$q, this.$timeout, $element, stepsNumber, $scope.switchOnIteration);
 
+    const scaleStep = 0.05;
+    const scaleMin = 0.6;
+    let setCraneSize = () => {
+      let scale = scaleMin;
 
-    $scope.$watch(() => {
-      return $scope.step;
-    }, (newVal) => {
-      newVal = parseInt(newVal, 10);
+      this.applyScale(scale, jqCraneScaleWrap, loader.height, loader.width);
+      jqCraneScaleWrap.css('display', 'block');
 
-      // try to stop animation on last step
-      if (newVal === $scope.allSteps.length - 1) {
-        animationStopping = true;
-
-        if (!$scope.switchOnIteration) {
-          // stop animation immediately if it shouldn't wait until next iteration
-          setNoAnimation();
-        }
-      }
-
-      // skip steps excluded
-      if ($scope.excludeSteps.indexOf(newVal) !== -1) {
+      // do nothing if loader is hidden by hide-sm directive
+      if ($element.find('.che-loader-crane-scale-wrapper:visible').length === 0) {
         return;
       }
 
-      newStep = newVal;
+      const loaderPartiallyHidden = this.elementPartiallyHidden(loader.element);
+      const bodyHasScroll = this.elementHasScroll(jqBody);
+      const createProjectContentPageHasScroll = this.elementHasScroll(jqCreateProjectContentPage);
 
-      // go to next step
-      // if animation hasn't run yet or it shouldn't wait until next iteration
-      if (!animationRunning || !$scope.switchOnIteration) {
-        setAnimation();
-        setCurrentStep();
+      // hide loader if there is scroll on minimal scale
+      if (
+        // check loader visibility on ide loading or factory loading
+        (loaderPartiallyHidden
+          // check whether scroll is present on project creating page
+          || bodyHasScroll || createProjectContentPageHasScroll)
+        && scale === scaleMin) {
+        jqCraneScaleWrap.css('display', 'none');
+        return;
+      }
+
+      while (scale < 1) {
+        this.applyScale(scale + scaleStep, jqCraneScaleWrap, loader.height, loader.width);
+
+        // check for scroll appearance
+        if (
+          // check loader visibility on ide loading or factory loading
+          loaderPartiallyHidden
+          // check whether scroll is present on project creating page
+          || bodyHasScroll || createProjectContentPageHasScroll) {
+          this.applyScale(scale, jqCraneScaleWrap, loader.height, loader.width);
+          break;
+        }
+
+        scale = scale + scaleStep;
+      }
+    };
+
+    $scope.$watch(() => {
+      return $scope.step;
+    }, (nextStepStr: string) => {
+      const nextStep = parseInt(nextStepStr, 10);
+
+      // skip excluded step
+      if ($scope.excludeSteps.indexOf(nextStepStr) !== -1) {
+        return;
+      }
+
+      loader.setStep(nextStep);
+      if (nextStep === $scope.allSteps.length) {
+        loader.stopAnimation();
       }
     });
 
     let destroyResizeEvent;
     $scope.$watch(() => {
-      return element.find('.che-loader-crane:visible').length;
-    }, (craneIsVisible) => {
-
+      return $element.find('.che-loader-crane:visible').length;
+    }, () => {
       if (angular.isFunction(destroyResizeEvent)) {
         return;
       }
 
-      jqCrane = element.find('.che-loader-crane');
-      jqCraneLoad = element.find('#che-loader-crane-load');
-      jqCraneScaleWrap = element.find('.che-loader-crane-scale-wrapper');
-      jqCreateProjectContentPage = angular.element('#create-project-content-page');
-      jqBody = angular.element(document).find('body');
-
       // initial resize
       this.$timeout(() => {
         setCraneSize();
-      },0);
+      }, 0);
 
       let timeoutPromise;
       destroyResizeEvent = angular.element(this.$window).bind('resize', () => {
@@ -113,107 +144,168 @@ export class CheLoaderCrane {
       });
     });
 
-    if ($scope.switchOnIteration) {
-      element.find('.che-loader-animation.trolley-block').bind('animationstart', () => {
-        animationRunning = true;
-      });
-      element.find('.che-loader-animation.trolley-block').bind('animationiteration', () => {
-        setCurrentStep();
+  }
 
-        if (animationStopping) {
-          setNoAnimation();
+  applyScale(scale: number, element: ng.IAugmentedJQuery, elementHeight: number, elementWidth: number) {
+    let jqElement = angular.element(element);
+    jqElement.css('transform', 'scale(' + scale + ')');
+    jqElement.css('height', elementHeight * scale);
+    jqElement.css('width', elementWidth * scale);
+  }
+
+  // hasScroll
+  elementHasScroll(element: ng.IAugmentedJQuery) {
+    let domElement = element[0];
+    if (!domElement) {
+      return;
+    }
+    return domElement.scrollHeight - domElement.offsetHeight > 0;
+  }
+
+  elementPartiallyHidden(element: ng.IAugmentedJQuery): boolean {
+    let domElement = element[0];
+    if (!domElement) {
+      return false;
+    }
+    let rect = domElement.getBoundingClientRect();
+    return rect.top < 0;
+  }
+
+}
+
+class Loader {
+  private $q: ng.IQService;
+  private $timeout: ng.ITimeoutService;
+  private $element: ng.IAugmentedJQuery;
+
+  private loader: ng.IAugmentedJQuery;
+  // todo: try to remove this
+  private load: ng.IAugmentedJQuery;
+
+  // if `true` then wait when current iteration ends and then render next step
+  private changeAnimationOnIteration: boolean = true;
+  private animationStopping: boolean = false;
+  private animationRunning: boolean = false;
+  private animationIterationDeferred: ng.IDeferred<void>;
+
+  currentStep: number = 0;
+  stepsNumber: number = 0;
+  maxStepsNumber: number = 4;
+  height: number;
+  width: number;
+
+  constructor(
+    $q: ng.IQService,
+    $timeout: ng.ITimeoutService,
+    $element: ng.IAugmentedJQuery,
+    stepsNumber: number,
+    changeAnimationOnIteration: boolean
+  ) {
+    this.$q = $q;
+    this.$timeout = $timeout;
+    this.$element = $element;
+
+    this.stepsNumber = stepsNumber;
+
+    this.changeAnimationOnIteration = changeAnimationOnIteration;
+
+    this.initialize();
+  }
+
+  private initialize(): void {
+    this.loader = this.$element.find('.che-loader-crane');
+    this.height = this.loader.height();
+    this.width = this.loader.width();
+
+    this.load = this.$element.find('#che-loader-crane-load');
+
+    this.loader.find('.che-loader-animation.trolley-block .layer')
+      .bind('animationstart', () => {
+        this.animationRunning = true;
+      })
+      .bind('animationiteration', () => {
+        this.animationIterationDeferred.resolve();
+        this.animationIterationDeferred = this.$q.defer<void>();
+
+        if (this.animationStopping) {
+          this.animationRunning = false;
+          this.loader.addClass('che-loader-no-animation');
+          return;
         }
       });
+  }
+
+  get element(): ng.IAugmentedJQuery {
+    return this.loader;
+  }
+
+  setStep(step: number): void {
+    this.currentStep = step > this.maxStepsNumber ? this.maxStepsNumber : step;
+
+    // stop animation on last step
+    if (step === this.stepsNumber) {
+      this.lastStep();
+      return;
     }
 
-    let applyScale = (jqElement, scale) => {
-        if (jqElement.nodeType) {
-          jqElement = angular.element(jqElement);
-        }
-        jqElement.css('transform', 'scale('+scale+')');
-        jqElement.css('height', craneHeight * scale);
-        jqElement.css('width', craneWidth * scale);
-      },
-      hasScrollMoreThan = (domElement,diff) => {
-        if (!domElement.nodeType) {
-          domElement = domElement[0];
-        }
-        if (!domElement) {
-          return;
-        }
-        return domElement.scrollHeight - domElement.offsetHeight > diff;
-      },
-      isVisibilityPartial = (domElement) => {
-        if (!domElement.nodeType) {
-          domElement = domElement[0];
-        }
-        if (!domElement) {
-          return;
-        }
-        let rect = domElement.getBoundingClientRect();
-        return rect.top < 0;
-      },
-      setCraneSize = () => {
-        let scale = scaleMin;
+    if (!this.animationIterationDeferred) {
+      this.animationIterationDeferred = this.$q.defer<void>();
+    }
 
-        applyScale(jqCraneScaleWrap, scale);
-        jqCraneScaleWrap.css('display','block');
+    this.animationIterationDeferred.promise.then(() => {
+      this.drawStep();
+      this.loader.removeClass('che-loader-no-animation');
+    });
 
-        // do nothing if loader is hidden by hide-sm directive
-        if (element.find('.che-loader-crane-scale-wrapper:visible').length === 0) {
-          return;
-        }
-
-        // hide loader if there is scroll on minimal scale
-        if (
-          // check loader visibility on ide loading or factory loading
-          (isVisibilityPartial(jqCrane)
-          // check whether scroll is present on project creating page
-          || hasScrollMoreThan(jqBody, 0) || hasScrollMoreThan(jqCreateProjectContentPage, 0))
-          && scale === scaleMin) {
-          jqCraneScaleWrap.css('display','none');
-          return;
-        }
-
-        while (scale < 1) {
-          applyScale(jqCraneScaleWrap, scale + scaleStep);
-
-          // check for scroll appearance
-          if (
-            // check loader visibility on ide loading or factory loading
-            isVisibilityPartial(jqCrane)
-            // check whether scroll is present on project creating page
-            || hasScrollMoreThan(jqBody, 0) || hasScrollMoreThan(jqCreateProjectContentPage, 0)) {
-            applyScale(jqCraneScaleWrap, scale);
-            break;
-          }
-
-          scale = scale + scaleStep;
-        }
-      },
-      setAnimation = () => {
-        jqCrane.removeClass('che-loader-no-animation');
-      },
-      setNoAnimation = () => {
-        animationRunning = false;
-        jqCrane.addClass('che-loader-no-animation');
-      },
-      setCurrentStep = () => {
-        // clear all previously added 'step-#' and 'layer-#' classes
-        for (let i = 0; i < $scope.allSteps.length; i++) {
-          jqCrane.removeClass('step-' + i);
-          jqCraneLoad.removeClass('layer-' + i);
-        }
-
-        // avoid next layer blinking
-        let currentLayer = element.find('.layers-in-box').find('.layer-'+newStep);
-        currentLayer.css('visibility','hidden');
-        this.$timeout(() => {
-          currentLayer.removeAttr('style');
-        },500);
-
-        jqCrane.addClass('step-' + newStep);
-        jqCraneLoad.addClass('layer-' + newStep);
-      };
+    if (
+      // if animation is not running at the moment
+      !this.animationRunning
+      // or it can be changed before an iteration ends
+      || !this.changeAnimationOnIteration
+    ) {
+      this.animationIterationDeferred.resolve();
+      this.animationIterationDeferred = this.$q.defer<void>();
+    }
   }
+
+  private lastStep(): void {
+    if (!this.changeAnimationOnIteration) {
+      // stop animation immediately
+      this.stopAnimation();
+    } else {
+      // or wait until an iteration ends
+      this.animationStopping = true;
+    }
+  }
+
+  stopAnimation(): void {
+    if (this.changeAnimationOnIteration === false) {
+      this.animationRunning = false;
+      this.loader.addClass('che-loader-no-animation');
+    }
+  }
+
+  private drawStep(): void {
+    // clear all previously added 'step-#' and 'layer-#' classes
+    let steps = '';
+    let layers = '';
+    for (let i = 0; i < this.maxStepsNumber; i++) {
+      steps += `step-${i}`;
+      layers += `layers-${i}`;
+    }
+    this.loader.removeClass(steps);
+    this.load.removeClass(layers);
+
+    // avoid next layer blinking
+    let currentLayer = this.loader.find('.layers-in-box').find('.layer-' + this.currentStep);
+    currentLayer.css('visibility', 'hidden');
+
+    this.$timeout(() => {
+      currentLayer.removeAttr('style');
+    }, 500);
+
+    this.loader.addClass('step-' + this.currentStep);
+    this.load.addClass('layer-' + this.currentStep);
+  }
+
 }

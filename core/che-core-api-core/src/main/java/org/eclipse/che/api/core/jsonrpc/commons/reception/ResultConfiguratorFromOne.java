@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -51,7 +52,7 @@ public class ResultConfiguratorFromOne<P> {
     return new FunctionConfiguratorOneToMany<>(requestHandlerManager, method, pClass, rClass);
   }
 
-  public FunctionConfiguratorOneToOne<P, String> resultAsDtoString() {
+  public FunctionConfiguratorOneToMany<P, String> resultAsListOfString() {
     LOGGER.debug(
         "Configuring incoming request result: "
             + "method: "
@@ -60,10 +61,10 @@ public class ResultConfiguratorFromOne<P> {
             + "result list items class: "
             + String.class);
 
-    return new FunctionConfiguratorOneToOne<>(requestHandlerManager, method, pClass, String.class);
+    return new FunctionConfiguratorOneToMany<>(requestHandlerManager, method, pClass, String.class);
   }
 
-  public FunctionConfiguratorOneToOne<P, Double> resultAsDtoDouble() {
+  public FunctionConfiguratorOneToMany<P, Double> resultAsListOfDouble() {
     LOGGER.debug(
         "Configuring incoming request result: "
             + "method: "
@@ -72,10 +73,10 @@ public class ResultConfiguratorFromOne<P> {
             + "result list items class: "
             + Double.class);
 
-    return new FunctionConfiguratorOneToOne<>(requestHandlerManager, method, pClass, Double.class);
+    return new FunctionConfiguratorOneToMany<>(requestHandlerManager, method, pClass, Double.class);
   }
 
-  public FunctionConfiguratorOneToOne<P, Boolean> resultAsDtoBoolean() {
+  public FunctionConfiguratorOneToMany<P, Boolean> resultAsListOfBoolean() {
     LOGGER.debug(
         "Configuring incoming request result: "
             + "method: "
@@ -84,7 +85,8 @@ public class ResultConfiguratorFromOne<P> {
             + "result list items class: "
             + Boolean.class);
 
-    return new FunctionConfiguratorOneToOne<>(requestHandlerManager, method, pClass, Boolean.class);
+    return new FunctionConfiguratorOneToMany<>(
+        requestHandlerManager, method, pClass, Boolean.class);
   }
 
   public <R> FunctionConfiguratorOneToOne<P, R> resultAsDto(Class<R> rClass) {
@@ -101,16 +103,18 @@ public class ResultConfiguratorFromOne<P> {
     return new FunctionConfiguratorOneToOne<>(requestHandlerManager, method, pClass, rClass);
   }
 
-  public FunctionConfiguratorOneToOne<P, Void> resultAsEmpty() {
+  public <R> PromiseConfigurationOneToOne<P, R> resultAsPromiseDto(Class<R> rClass) {
+    checkNotNull(rClass, "Result class must not be null");
+
     LOGGER.debug(
         "Configuring incoming request result: "
             + "method: "
             + method
             + ", "
             + "result object class: "
-            + Void.class);
+            + rClass);
 
-    return new FunctionConfiguratorOneToOne<>(requestHandlerManager, method, pClass, Void.class);
+    return new PromiseConfigurationOneToOne<>(requestHandlerManager, method, pClass, rClass);
   }
 
   public FunctionConfiguratorOneToOne<P, String> resultAsString() {

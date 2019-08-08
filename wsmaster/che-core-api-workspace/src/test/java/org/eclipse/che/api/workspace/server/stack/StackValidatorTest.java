@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,7 +12,7 @@
 package org.eclipse.che.api.workspace.server.stack;
 
 import static org.eclipse.che.dto.server.DtoFactory.newDto;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 
 import java.util.ArrayList;
@@ -21,7 +22,6 @@ import org.eclipse.che.api.workspace.server.WorkspaceValidator;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.stack.StackComponentDto;
 import org.eclipse.che.api.workspace.shared.dto.stack.StackDto;
-import org.eclipse.che.api.workspace.shared.dto.stack.StackSourceDto;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.testng.MockitoTestNGListener;
@@ -52,25 +52,22 @@ public class StackValidatorTest {
   }
 
   @Test(
-    expectedExceptions = BadRequestException.class,
-    expectedExceptionsMessageRegExp = "Required non-null stack"
-  )
+      expectedExceptions = BadRequestException.class,
+      expectedExceptionsMessageRegExp = "Required non-null stack")
   public void shouldNotValidateIfStackIsNull() throws Exception {
     validator.check(null);
   }
 
   @Test(
-    expectedExceptions = BadRequestException.class,
-    expectedExceptionsMessageRegExp = "Required non-null and non-empty stack name"
-  )
+      expectedExceptions = BadRequestException.class,
+      expectedExceptionsMessageRegExp = "Required non-null and non-empty stack name")
   public void shouldNotValidateIfStackNameIsNull() throws Exception {
     validator.check(createStack().withName(null));
   }
 
   @Test(
-    expectedExceptions = BadRequestException.class,
-    expectedExceptionsMessageRegExp = "Required non-null and non-empty stack name"
-  )
+      expectedExceptions = BadRequestException.class,
+      expectedExceptionsMessageRegExp = "Required non-null and non-empty stack name")
   public void shouldNotValidateIfStackNameIsEmpty() throws Exception {
     validator.check(createStack().withName(""));
   }
@@ -86,41 +83,24 @@ public class StackValidatorTest {
   }
 
   @Test(
-    expectedExceptions = BadRequestException.class,
-    expectedExceptionsMessageRegExp = "Required non-null scope value: 'general' or 'advanced'"
-  )
+      expectedExceptions = BadRequestException.class,
+      expectedExceptionsMessageRegExp = "Required non-null scope value: 'general' or 'advanced'")
   public void shouldNotValidateIfStackScopeIsNull() throws Exception {
     validator.check(createStack().withScope(null));
   }
 
   @Test(
-    expectedExceptions = BadRequestException.class,
-    expectedExceptionsMessageRegExp = "Required non-null scope value: 'general' or 'advanced'"
-  )
+      expectedExceptions = BadRequestException.class,
+      expectedExceptionsMessageRegExp = "Required non-null scope value: 'general' or 'advanced'")
   public void shouldNotValidateIfStackScopeIsNotGeneralOrAdvanced() throws Exception {
     validator.check(createStack().withScope("not-valid"));
   }
 
-  @Test
-  public void shouldValidateIfSourceIsWorkspaceConfigAndStackSourceIsNull() throws Exception {
-    validator.check(createStack().withSource(null));
-  }
-
   @Test(
-    expectedExceptions = BadRequestException.class,
-    expectedExceptionsMessageRegExp = "Workspace config required"
-  )
+      expectedExceptions = BadRequestException.class,
+      expectedExceptionsMessageRegExp = "Workspace config required")
   public void shouldValidateIfSourceIsStackSourceAndWorkspaceConfigIsNull() throws Exception {
     validator.check(createStack().withWorkspaceConfig(null));
-  }
-
-  @Test(
-    expectedExceptions = BadRequestException.class,
-    expectedExceptionsMessageRegExp =
-        "Stack source required. You must specify either 'workspaceConfig' or 'stackSource'"
-  )
-  public void shouldNotValidateIfWorkspaceConfigAndSourceAreNull() throws Exception {
-    validator.check(createStack().withSource(null).withWorkspaceConfig(null));
   }
 
   @Test
@@ -137,8 +117,6 @@ public class StackValidatorTest {
         .withCreator("user123")
         .withTags(new ArrayList<>(Collections.singletonList("latest")))
         .withWorkspaceConfig(newDto(WorkspaceConfigDto.class))
-        .withSource(
-            newDto(StackSourceDto.class).withType("recipe").withOrigin("FROM codenvy/ubuntu_jdk8"))
         .withComponents(
             new ArrayList<>(
                 Collections.singletonList(

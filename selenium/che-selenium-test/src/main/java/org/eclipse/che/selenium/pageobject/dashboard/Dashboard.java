@@ -1,38 +1,48 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.pageobject.dashboard;
 
+import static java.lang.String.format;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ELEMENT_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.EXPECTED_MESS_IN_CONSOLE_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOADER_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
 import static org.openqa.selenium.support.ui.ExpectedConditions.invisibilityOfElementLocated;
+import static org.openqa.selenium.support.ui.ExpectedConditions.textToBePresentInElement;
 import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOf;
+import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
+import java.util.List;
 import javax.annotation.PreDestroy;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.client.keycloak.TestKeycloakSettingsServiceClient;
+import org.eclipse.che.selenium.core.entrance.Entrance;
 import org.eclipse.che.selenium.core.provider.TestDashboardUrlProvider;
-import org.eclipse.che.selenium.core.provider.TestIdeUrlProvider;
 import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.utils.WaitUtils;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
+import org.eclipse.che.selenium.core.webdriver.WebDriverWaitFactory;
+import org.eclipse.che.selenium.pageobject.TestWebElementRenderChecker;
+import org.eclipse.che.selenium.pageobject.site.LoginPage;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Cookie;
-import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
-import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 /** @author Musienko Maxim */
@@ -41,55 +51,102 @@ public class Dashboard {
   protected final SeleniumWebDriver seleniumWebDriver;
   protected final DefaultTestUser defaultUser;
 
-  private final TestIdeUrlProvider testIdeUrlProvider;
   private final TestDashboardUrlProvider testDashboardUrlProvider;
+  private final Entrance entrance;
+  private final LoginPage loginPage;
+  private final TestWebElementRenderChecker testWebElementRenderChecker;
+  private final TestKeycloakSettingsServiceClient testKeycloakSettingsServiceClient;
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
+  private final WebDriverWaitFactory webDriverWaitFactory;
+  private final boolean isMultiuser;
 
   @Inject
   public Dashboard(
       SeleniumWebDriver seleniumWebDriver,
       DefaultTestUser defaultUser,
-      TestIdeUrlProvider testIdeUrlProvider,
-      TestDashboardUrlProvider testDashboardUrlProvider) {
+      TestDashboardUrlProvider testDashboardUrlProvider,
+      Entrance entrance,
+      LoginPage loginPage,
+      TestWebElementRenderChecker testWebElementRenderChecker,
+      TestKeycloakSettingsServiceClient testKeycloakSettingsServiceClient,
+      SeleniumWebDriverHelper seleniumWebDriverHelper,
+      WebDriverWaitFactory webDriverWaitFactory,
+      @Named("che.multiuser") boolean isMultiuser) {
     this.seleniumWebDriver = seleniumWebDriver;
     this.defaultUser = defaultUser;
-    this.testIdeUrlProvider = testIdeUrlProvider;
     this.testDashboardUrlProvider = testDashboardUrlProvider;
+    this.entrance = entrance;
+    this.loginPage = loginPage;
+    this.testWebElementRenderChecker = testWebElementRenderChecker;
+    this.testKeycloakSettingsServiceClient = testKeycloakSettingsServiceClient;
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
+    this.webDriverWaitFactory = webDriverWaitFactory;
+    this.isMultiuser = isMultiuser;
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
-  private interface Locators {
-    String DASHBOARD_TOOLBAR_TITLE = "div [aria-label='Dashboard']";
-    String NEW_PROJECT_LINK = "//a[@href='#/create-project']/span[text()='Create Workspace']";
-    String COLLAPSE_DASH_NAVBAR_BTN = "ide-iframe-button-link";
-    String DASHBOARD_ITEM_XPATH = "//a[@href='#/']//span[text()='Dashboard']";
-    String WORKSPACES_ITEM_XPATH = "//a[@href='#/workspaces']//span[text()='Workspaces']";
-    String FACTORIES_ITEM_XPATH = "//a[@href='#/factories']//span[text()='Factories']";
-    String NOTIFICATION_CONTAINER = "che-notification-container";
-    String DEVELOPERS_FACE_XPATH = "//img[@class='developers-face']";
-    String USER_NAME = "//span[text()='%s']";
-    String LICENSE_NAG_MESSAGE_XPATH = "//div[contains(@class, 'license-message')]";
+  public enum MenuItem {
+    DASHBOARD("Dashboard"),
+    WORKSPACES("Workspaces"),
+    STACKS("Stacks"),
+    FACTORIES("Factories"),
+    USERS("Users"),
+    ORGANIZATIONS("Organizations"),
+    SETTINGS("Settings"),
+    CREATE_TEAM("Create Team");
+
+    private final String title;
+
+    MenuItem(String title) {
+      this.title = title;
+    }
   }
 
-  @FindBy(css = Locators.DASHBOARD_TOOLBAR_TITLE)
-  WebElement dashboardTitle;
+  public interface Locators {
+    String DASHBOARD_TOOLBAR_TITLE = "navbar";
+    String NAVBAR_NOTIFICATION_CONTAINER = "navbar-notification-container";
+    String COLLAPSE_DASH_NAVBAR_BTN = "ide-iframe-button-link";
+    String NOTIFICATION_CONTAINER = "che-notification-container";
+    String DASHBOARD_ITEM = "dashboard-item";
+    String WORKSPACES_ITEM = "workspaces-item";
+    String STACKS_ITEM = "stacks-item";
+    String FACTORIES_ITEM = "factories-item";
+    String ADMINISTRATION_ITEM = "administration-item";
+    String ORGANIZATIONS_ITEM = "organization-item";
+    String RESENT_WS_NAVBAR = "//div[@class='admin-navbar-menu recent-workspaces']";
+    String LEFT_SIDE_BAR = "//div[@class='left-sidebar-container']";
+    String USER_PANEL = "navbar-user-panel";
+    String DEVELOPERS_FACE_XPATH = "developers-face";
+    String USER_NAME = "user-name";
+    String LICENSE_NAG_MESSAGE_XPATH = "//div[contains(@class, 'license-message')]";
+    String TOOLBAR_TITLE_NAME =
+        "//div[contains(@class,'che-toolbar')]//span[contains(text(),'%s')]";
+    String WORKSPACE_NAME_IN_RECENT_LIST = "//span[@title='%s']";
+  }
 
-  @FindBy(xpath = Locators.NEW_PROJECT_LINK)
-  WebElement newProjectLink;
+  @FindBy(id = Locators.DASHBOARD_TOOLBAR_TITLE)
+  WebElement dashboardTitle;
 
   @FindBy(id = Locators.COLLAPSE_DASH_NAVBAR_BTN)
   WebElement collapseDashNavbarBtn;
 
-  @FindBy(xpath = Locators.WORKSPACES_ITEM_XPATH)
+  @FindBy(id = Locators.DASHBOARD_ITEM)
+  WebElement dashboardItem;
+
+  @FindBy(id = Locators.WORKSPACES_ITEM)
   WebElement workspacesItem;
 
-  @FindBy(xpath = Locators.FACTORIES_ITEM_XPATH)
+  @FindBy(id = Locators.STACKS_ITEM)
+  WebElement stacksItem;
+
+  @FindBy(id = Locators.FACTORIES_ITEM)
   WebElement factoriesItem;
 
-  @FindBy(xpath = Locators.DEVELOPERS_FACE_XPATH)
+  @FindBy(id = Locators.DEVELOPERS_FACE_XPATH)
   WebElement developersFace;
 
-  @FindBy(xpath = Locators.DASHBOARD_ITEM_XPATH)
-  WebElement dashboardItem;
+  @FindBy(id = Locators.USER_NAME)
+  WebElement userName;
 
   @FindBy(id = Locators.NOTIFICATION_CONTAINER)
   WebElement notificationPopUp;
@@ -97,35 +154,58 @@ public class Dashboard {
   @FindBy(xpath = Locators.LICENSE_NAG_MESSAGE_XPATH)
   WebElement licenseNagMessage;
 
+  /**
+   * Gets digit which displays near "Workspaces" item on dashboard and means count of the existing
+   * workspaces.
+   *
+   * @return count of workspaces
+   */
+  public int getWorkspacesCountInWorkspacesItem() {
+    return Integer.parseInt(
+        seleniumWebDriverHelper
+            .waitVisibilityAndGetText(workspacesItem)
+            .replace("Workspaces\n (", "")
+            .replace(")", ""));
+  }
+
+  public void waitWorkspacesCountInWorkspacesItem(int expectedCount) {
+    webDriverWaitFactory
+        .get()
+        .until(
+            (ExpectedCondition<Boolean>)
+                driver -> expectedCount == getWorkspacesCountInWorkspacesItem());
+  }
+
   /** wait button with drop dawn icon (left top corner) */
   public void waitDashboardToolbarTitle() {
-    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOf(dashboardTitle));
-  }
-
-  public void clickOnNewProjectLinkOnDashboard() {
-    waitDashboardToolbarTitle();
-    newProjectLink.click();
-  }
-
-  /** click on the 'Workspaces' item on the dashboard */
-  public void selectWorkspacesItemOnDashboard() {
-    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOf(workspacesItem))
-        .click();
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC).until(visibilityOf(dashboardTitle));
   }
 
   /** click on the 'Dashboard' item on the dashboard */
   public void selectDashboardItemOnDashboard() {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOf(dashboardItem))
+        .until(visibilityOf(dashboardItem))
+        .click();
+  }
+
+  /** click on the 'Workspaces' item on the dashboard */
+  public void selectWorkspacesItemOnDashboard() {
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(visibilityOf(workspacesItem))
+        .click();
+  }
+
+  /** click on the 'Stacks' item on the dashboard */
+  public void selectStacksItemOnDashboard() {
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(visibilityOf(stacksItem))
         .click();
   }
 
   /** click on the 'Factories' item on the dashboard */
   public void selectFactoriesOnDashbord() {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOf(factoriesItem))
+        .until(visibilityOf(factoriesItem))
         .click();
   }
 
@@ -135,41 +215,39 @@ public class Dashboard {
    * @param notification
    */
   public void waitNotificationMessage(String notification) {
-    new WebDriverWait(seleniumWebDriver, LOADER_TIMEOUT_SEC)
-        .until(ExpectedConditions.textToBePresentInElement(notificationPopUp, notification));
+    new WebDriverWait(seleniumWebDriver, EXPECTED_MESS_IN_CONSOLE_SEC)
+        .until(textToBePresentInElement(notificationPopUp, notification));
   }
 
   /** wait closing of notification pop up */
   public void waitNotificationIsClosed() {
     WaitUtils.sleepQuietly(1);
     new WebDriverWait(seleniumWebDriver, ELEMENT_TIMEOUT_SEC)
-        .until(
-            ExpectedConditions.invisibilityOfElementLocated(
-                By.id(Locators.NOTIFICATION_CONTAINER)));
+        .until(invisibilityOfElementLocated(By.id(Locators.NOTIFICATION_CONTAINER)));
   }
 
   /** wait opening of notification pop up */
   public void waitNotificationIsOpen() {
     new WebDriverWait(seleniumWebDriver, ELEMENT_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOf(notificationPopUp));
+        .until(visibilityOf(notificationPopUp));
   }
 
   /** Wait developer avatar is present on dashboard */
   public void waitDeveloperFaceImg() {
     new WebDriverWait(seleniumWebDriver, EXPECTED_MESS_IN_CONSOLE_SEC)
-        .until(ExpectedConditions.visibilityOf(developersFace));
+        .until(visibilityOf(developersFace));
   }
 
   /**
    * Wait user name is present on dashboard
    *
-   * @param userName name of user
+   * @param name name of user
    */
-  public void checkUserName(String userName) {
-    new WebDriverWait(seleniumWebDriver, EXPECTED_MESS_IN_CONSOLE_SEC)
-        .until(
-            ExpectedConditions.presenceOfElementLocated(
-                By.xpath(String.format(Locators.USER_NAME, userName))));
+  public Boolean checkUserName(String name) {
+    return new WebDriverWait(seleniumWebDriver, EXPECTED_MESS_IN_CONSOLE_SEC)
+        .until(visibilityOf(userName))
+        .getText()
+        .equals(name);
   }
 
   /**
@@ -190,23 +268,86 @@ public class Dashboard {
 
   /** Open dashboard as default uses */
   public void open() {
-    open(defaultUser.getAuthToken());
+    seleniumWebDriver.get(testDashboardUrlProvider.get().toString());
+    entrance.login(defaultUser);
+    waitDashboardToolbarTitle();
   }
 
-  public void open(String authToken) {
-    seleniumWebDriver.get(testIdeUrlProvider.get().toString());
-
-    Cookie accessKey = new Cookie("session-access-key", authToken);
-    seleniumWebDriver.manage().addCookie(accessKey);
-
+  /** Open dashboard with provided username and password */
+  public void open(String userName, String userPassword) {
     seleniumWebDriver.get(testDashboardUrlProvider.get().toString());
-
-    // renew session to avoid an error "HTTP Status 403 - CSRF nonce validation failed" https://github.com/codenvy/codenvy/issues/2255
-    seleniumWebDriver.get(testDashboardUrlProvider.get().toString());
+    if (loginPage.isOpened()) {
+      loginPage.login(userName, userPassword);
+    }
   }
 
-  public WebDriver driver() {
-    return seleniumWebDriver;
+  public void logout() {
+    if (!isMultiuser) {
+      return;
+    }
+
+    String logoutUrl =
+        format(
+            "%s?redirect_uri=%s#/workspaces",
+            testKeycloakSettingsServiceClient.read().getKeycloakLogoutEndpoint(),
+            testDashboardUrlProvider.get());
+
+    seleniumWebDriver.navigate().to(logoutUrl);
+  }
+
+  /**
+   * Wait toolbar name is present on dashboard
+   *
+   * @param titleName name of user
+   */
+  public void waitToolbarTitleName(String titleName) {
+    new WebDriverWait(seleniumWebDriver, LOADER_TIMEOUT_SEC)
+        .until(
+            visibilityOfElementLocated(By.xpath(format(Locators.TOOLBAR_TITLE_NAME, titleName))));
+  }
+
+  /** Return true if workspaces present on the navigation panel */
+  public boolean workspacesIsPresent() {
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+        .until(visibilityOfElementLocated(By.xpath(Locators.LEFT_SIDE_BAR)));
+
+    List<WebElement> workspaces =
+        seleniumWebDriver.findElements(By.xpath(Locators.RESENT_WS_NAVBAR));
+    return !(workspaces.size() == 0);
+  }
+
+  public boolean isWorkspacePresentedInRecentList(String workspaceName) {
+    try {
+      return new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+          .until(
+              visibilityOfElementLocated(
+                  By.xpath(format(Locators.WORKSPACE_NAME_IN_RECENT_LIST, workspaceName))))
+          .isDisplayed();
+    } catch (TimeoutException ex) {
+      return false;
+    }
+  }
+
+  public void clickOnUsernameButton() {
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+        .until(visibilityOfElementLocated(By.id(Locators.USER_NAME)))
+        .click();
+  }
+
+  public void clickOnAccountItem() {
+    testWebElementRenderChecker.waitElementIsRendered(By.id("menu_container_1"));
+
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+        .until(visibilityOfElementLocated(By.xpath("//span[text()=' Account']")))
+        .click();
+  }
+
+  public void clickOnLogoutItem() {
+    testWebElementRenderChecker.waitElementIsRendered(By.id("menu_container_1"));
+
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+        .until(visibilityOfElementLocated(By.xpath("//span[text()=' Logout']")))
+        .click();
   }
 
   @PreDestroy

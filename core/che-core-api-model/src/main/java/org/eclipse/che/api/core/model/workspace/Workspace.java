@@ -1,16 +1,19 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.core.model.workspace;
 
+import com.google.common.annotations.Beta;
 import java.util.Map;
+import org.eclipse.che.api.core.model.workspace.devfile.Devfile;
 import org.eclipse.che.commons.annotation.Nullable;
 
 /**
@@ -54,10 +57,19 @@ public interface Workspace {
   boolean isTemporary();
 
   /**
-   * Returns a configuration of this workspace instance. Workspace is always created from the
-   * configuration so the configuration is mandatory for every workspace instance.
+   * Returns a configuration of this workspace instance. The only one format (workspace config or
+   * devfile) may be used for workspace at the same time.
    */
+  @Nullable
   WorkspaceConfig getConfig();
+
+  /**
+   * Returns a configuration of this workspace instance in Devfile format. The only one format
+   * (workspace config or devfile) may be used for workspace at the same time.
+   */
+  @Beta
+  @Nullable
+  Devfile getDevfile();
 
   /**
    * Returns the runtime of this workspace instance. If status of this workspace instance is either
@@ -65,5 +77,5 @@ public interface Workspace {
    * WorkspaceStatus#STOPPING} then returned value is not null, otherwise it is.
    */
   @Nullable
-  WorkspaceRuntime getRuntime();
+  Runtime getRuntime();
 }

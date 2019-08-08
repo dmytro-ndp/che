@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,6 +14,8 @@ package org.eclipse.che.api.system.server;
 import static org.eclipse.che.api.system.shared.SystemStatus.PREPARING_TO_SHUTDOWN;
 import static org.eclipse.che.api.system.shared.SystemStatus.READY_TO_SHUTDOWN;
 import static org.eclipse.che.api.system.shared.SystemStatus.RUNNING;
+import static org.eclipse.che.dto.server.DtoFactory.newDto;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,7 +24,8 @@ import static org.testng.Assert.assertEquals;
 import java.util.Iterator;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.notification.EventService;
-import org.eclipse.che.api.system.shared.event.SystemStatusChangedEvent;
+import org.eclipse.che.api.system.shared.dto.SystemStatusChangedEventDto;
+import org.eclipse.che.core.db.DBTermination;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -43,19 +47,28 @@ public class SystemManagerTest {
 
   @Mock private EventService eventService;
 
-  @Captor private ArgumentCaptor<SystemStatusChangedEvent> eventsCaptor;
+  @Mock private DBTermination dbTermination;
+
+  @Captor private ArgumentCaptor<SystemStatusChangedEventDto> eventsCaptor;
 
   private SystemManager systemManager;
 
   @BeforeMethod
   public void init() {
     MockitoAnnotations.initMocks(this);
-    systemManager = new SystemManager(terminator, eventService);
+    systemManager = new SystemManager(terminator, dbTermination, eventService);
   }
 
   @Test
   public void isRunningByDefault() {
     assertEquals(systemManager.getSystemStatus(), RUNNING);
+  }
+
+  @Test
+  public void servicesAreSuspended() throws Exception {
+    systemManager.suspendServices();
+
+    verifySuspendCompleted();
   }
 
   @Test
@@ -83,15 +96,36 @@ public class SystemManagerTest {
   public void shutdownStopsServicesIfNotStopped() throws Exception {
     systemManager.shutdown();
 
-    verifyShutdownCompleted();
+    verifySuspendCompleted();
+    verifyDBTerminated();
+  }
+
+  private void verifyDBTerminated() {
+    verify(dbTermination, atLeastOnce()).terminate();
   }
 
   private void verifyShutdownCompleted() throws InterruptedException {
     verify(terminator, timeout(2000)).terminateAll();
+    verifyEvents();
+  }
+
+  private void verifySuspendCompleted() throws InterruptedException {
+    verify(terminator, timeout(2000)).suspendAll();
+    verifyEvents();
+  }
+
+  private void verifyEvents() {
     verify(eventService, times(2)).publish(eventsCaptor.capture());
-    Iterator<SystemStatusChangedEvent> eventsIt = eventsCaptor.getAllValues().iterator();
-    assertEquals(eventsIt.next(), new SystemStatusChangedEvent(RUNNING, PREPARING_TO_SHUTDOWN));
+    Iterator<SystemStatusChangedEventDto> eventsIt = eventsCaptor.getAllValues().iterator();
     assertEquals(
-        eventsIt.next(), new SystemStatusChangedEvent(PREPARING_TO_SHUTDOWN, READY_TO_SHUTDOWN));
+        eventsIt.next(),
+        newDto(SystemStatusChangedEventDto.class)
+            .withPrevStatus(RUNNING)
+            .withStatus(PREPARING_TO_SHUTDOWN));
+    assertEquals(
+        eventsIt.next(),
+        newDto(SystemStatusChangedEventDto.class)
+            .withPrevStatus(PREPARING_TO_SHUTDOWN)
+            .withStatus(READY_TO_SHUTDOWN));
   }
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,6 +18,7 @@ import static org.eclipse.che.api.core.websocket.impl.WebsocketIdService.randomC
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.websocket.CloseReason;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
@@ -24,6 +26,8 @@ import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import org.eclipse.che.api.core.websocket.commons.WebSocketMessageReceiver;
+import org.eclipse.che.commons.env.EnvironmentContext;
+import org.eclipse.che.commons.subject.Subject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,12 +37,14 @@ import org.slf4j.LoggerFactory;
  * @author Dmitry Kuleshov
  */
 public abstract class BasicWebSocketEndpoint {
+
   private static final Logger LOG = LoggerFactory.getLogger(BasicWebSocketEndpoint.class);
 
   private final WebSocketSessionRegistry registry;
   private final MessagesReSender reSender;
   private final WebSocketMessageReceiver receiver;
   private final WebsocketIdService identificationService;
+  private final Map<Session, StringBuffer> sessionMessagesBuffer = new ConcurrentHashMap<>();
 
   public BasicWebSocketEndpoint(
       WebSocketSessionRegistry registry,
@@ -63,9 +69,29 @@ public abstract class BasicWebSocketEndpoint {
 
     registry.add(combinedEndpointId, session);
     reSender.resend(combinedEndpointId);
+    sessionMessagesBuffer.put(session, new StringBuffer());
   }
 
   @OnMessage
+  public void onMessage(String messagePart, boolean last, Session session) {
+    try {
+      EnvironmentContext.getCurrent()
+          .setSubject((Subject) session.getUserProperties().get("che_subject"));
+
+      StringBuffer buffer = sessionMessagesBuffer.get(session);
+      buffer.append(messagePart);
+      if (last) {
+        try {
+          onMessage(buffer.toString(), session);
+        } finally {
+          buffer.setLength(0);
+        }
+      }
+    } finally {
+      EnvironmentContext.reset();
+    }
+  }
+
   public void onMessage(String message, Session session) {
     Optional<String> endpointIdOptional = registry.get(session);
 
@@ -98,6 +124,7 @@ public abstract class BasicWebSocketEndpoint {
       LOG.debug("Close reason: {}:{}", closeReason.getReasonPhrase(), closeReason.getCloseCode());
 
       registry.remove(combinedEndpointId);
+      sessionMessagesBuffer.remove(session);
     } else {
       LOG.warn("Closing unidentified session");
     }

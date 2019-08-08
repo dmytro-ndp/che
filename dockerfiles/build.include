@@ -1,9 +1,18 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright (c) 2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
+#
+
+set -e
+set -u
+
+IMAGE_ALIASES=${IMAGE_ALIASES:-}
+ERROR=${ERROR:-}
+DIR=${DIR:-}
 
 skip_tests() {
   if [ $SKIP_TESTS = "true" ]; then
@@ -11,6 +20,13 @@ skip_tests() {
   else
     return 1
   fi
+}
+
+prepare_build_args() {
+    IFS=',' read -r -a BUILD_ARGS_ARRAY <<< "$@"
+    for i in ${BUILD_ARGS_ARRAY[@]}; do
+    BUILD_ARGS+="--build-arg $i "
+    done
 }
 
 init() {
@@ -30,6 +46,8 @@ init() {
   NAME="che"
   ARGS=""
   OPTIONS=""
+  DOCKERFILE=""
+  BUILD_ARGS=""
 
   while [ $# -gt 0 ]; do
     case $1 in
@@ -57,6 +75,13 @@ init() {
       --skip-tests)
         SKIP_TESTS=true
         shift ;;
+      --dockerfile:*)
+        DOCKERFILE="${1#*:}"
+        shift ;;
+      --build-arg*:*)
+        BUILD_ARGS_CSV="${1#*:}"
+        prepare_build_args $BUILD_ARGS_CSV
+        shift ;;
       --*)
         printf "${RED}Unknown parameter: $1${NC}\n"; exit 2 ;;
       *)
@@ -68,19 +93,53 @@ init() {
 }
 
 build() {
-  DIR=$(cd "$(dirname "$0")"; pwd)
+
+  # Compute directory
+  if [ -z $DIR ]; then
+      DIR=$(cd "$(dirname "$0")"; pwd)
+  fi
+
+  # If Dockerfile is empty, build all Dockerfiles
+  if [ -z ${DOCKERFILE} ]; then
+    DOCKERFILES_TO_BUILD="$(ls ${DIR}/Dockerfile*)"
+    ORIGINAL_TAG=${TAG}
+    # Build image for each Dockerfile
+    for dockerfile in ${DOCKERFILES_TO_BUILD}; do
+       dockerfile=$(basename $dockerfile)
+       # extract TAG from Dockerfile
+       if [ ${dockerfile} != "Dockerfile" ]; then
+         TAG=${ORIGINAL_TAG}-$(echo ${dockerfile} | sed -e "s/^Dockerfile.//")
+       fi
+       IMAGE_NAME="$ORGANIZATION/$PREFIX-$NAME:$TAG"
+       DOCKERFILE=${dockerfile}
+       build_image
+    done
+
+    # restore variables
+    TAG=${ORIGINAL_TAG}
+    IMAGE_NAME="$ORGANIZATION/$PREFIX-$NAME:$TAG"
+  else
+    # else if specified, build only the one specified
+    build_image
+  fi
+
+}
+
+build_image() {
   printf "${BOLD}Building Docker Image ${IMAGE_NAME} from $DIR directory with tag $TAG${NC}\n"
   # Replace macros in Dockerfiles
-  cat ${DIR}/Dockerfile | sed s/\$\{BUILD_ORGANIZATION\}/${ORGANIZATION}/ | sed s/\$\{BUILD_PREFIX\}/${PREFIX}/ | sed s/\$\{BUILD_TAG\}/${TAG}/ > ${DIR}/.Dockerfile
-  cd "${DIR}" && docker build -f ${DIR}/.Dockerfile -t ${IMAGE_NAME} .
+  cat ${DIR}/${DOCKERFILE} | sed s/\$\{BUILD_ORGANIZATION\}/${ORGANIZATION}/ | sed s/\$\{BUILD_PREFIX\}/${PREFIX}/ | sed s/\$\{BUILD_TAG\}/${TAG}/ > ${DIR}/.Dockerfile
+  cd "${DIR}" && docker build -f ${DIR}/.Dockerfile -t ${IMAGE_NAME} ${BUILD_ARGS} .
+  DOCKER_BUILD_STATUS=$?
   rm ${DIR}/.Dockerfile
-  if [ $? -eq 0 ]; then
+  if [ $DOCKER_BUILD_STATUS -eq 0 ]; then
     printf "Build of ${BLUE}${IMAGE_NAME} ${GREEN}[OK]${NC}\n"
     if [ ! -z "${IMAGE_ALIASES}" ]; then
       for TMP_IMAGE_NAME in ${IMAGE_ALIASES}
       do
         docker tag ${IMAGE_NAME} ${TMP_IMAGE_NAME}:${TAG}
-        if [ $? -eq 0 ]; then
+        DOCKER_TAG_STATUS=$?
+        if [ $DOCKER_TAG_STATUS -eq 0 ]; then
           printf "  /alias ${BLUE}${TMP_IMAGE_NAME}:${TAG}${NC} ${GREEN}[OK]${NC}\n"
         else
           printf "${RED}Failure when building docker image ${IMAGE_NAME}${NC}\n"

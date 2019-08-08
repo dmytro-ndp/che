@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -87,6 +88,16 @@ public class ThreadPullLauncher implements Launcher {
   @Override
   public void scheduleWithFixedDelay(
       Runnable runnable, long initialDelay, long delay, TimeUnit unit) {
+    if (delay <= 0) {
+      LOG.debug(
+          "Method {} has not been scheduled (delay <= 0). Initial delay {} delay {} unit {}",
+          runnable,
+          initialDelay,
+          delay,
+          unit);
+      return;
+    }
+
     service.scheduleWithFixedDelay(runnable, initialDelay, delay, unit);
     LOG.debug(
         "Schedule method {} with fixed initial delay {} delay {} unit {}",
@@ -99,6 +110,16 @@ public class ThreadPullLauncher implements Launcher {
   @Override
   public void scheduleAtFixedRate(
       Runnable runnable, long initialDelay, long period, TimeUnit unit) {
+    if (period <= 0) {
+      LOG.debug(
+          "Method {} with fixed rate has not been scheduled (period <= 0). Initial delay {} period {} unit {}",
+          runnable,
+          initialDelay,
+          period,
+          unit);
+      return;
+    }
+
     service.scheduleAtFixedRate(runnable, initialDelay, period, unit);
     LOG.debug(
         "Schedule method {} with fixed rate. Initial delay {} period {} unit {}",

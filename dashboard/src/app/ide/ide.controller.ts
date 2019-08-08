@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,13 +13,15 @@
 import IdeSvc from './ide.service';
 import IdeIFrameSvc from './ide-iframe/ide-iframe.service';
 import {RouteHistory} from '../../components/routing/route-history.service';
-import {CheWorkspace} from '../../components/api/che-workspace.factory';
+import {CheWorkspace} from '../../components/api/workspace/che-workspace.factory';
 
 /**
  * This class is handling the controller for the IDE
  * @author Florent Benoit
  */
 class IdeCtrl {
+  static $inject = ['$location', '$rootScope', '$routeParams', '$timeout', 'ideSvc', 'ideIFrameSvc', 'cheWorkspace', 'routeHistory'];
+
   $rootScope: che.IRootScopeService;
   $routeParams: che.route.IRouteParamsService;
   $timeout: ng.ITimeoutService;
@@ -34,7 +37,6 @@ class IdeCtrl {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($location: ng.ILocationService, $rootScope: ng.IRootScopeService,
               $routeParams: ng.route.IRouteParamsService, $timeout: ng.ITimeoutService, ideSvc: IdeSvc,
@@ -138,7 +140,8 @@ class IdeCtrl {
 
     this.workspaces = this.cheWorkspace.getWorkspaces();
     for (let i = 0; i < this.workspaces.length; i++) {
-      if (this.workspaces[i].config.name === this.selectedWorkspaceName) {
+      let name = this.cheWorkspace.getWorkspaceDataManager().getName(this.workspaces[i]);
+      if (name === this.selectedWorkspaceName) {
         this.selectedWorkspace = this.workspaces[i];
       }
     }
@@ -147,9 +150,11 @@ class IdeCtrl {
 
     this.$rootScope.hideLoader = true;
 
-    if (this.selectedWorkspace) {
-      this.ideSvc.openIde(this.selectedWorkspace.id);
+    if (!this.selectedWorkspace) {
+      return;
     }
+
+    this.ideSvc.openIde(this.selectedWorkspace.id);
   }
 }
 

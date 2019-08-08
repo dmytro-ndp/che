@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,15 +19,21 @@
  */
 export class ExportWorkspaceController {
 
+  static $inject = ['$mdDialog'];
+
+  $mdDialog: ng.material.IDialogService;
+
+  workspaceId: string;
+  workspaceDetails: che.IWorkspace;
+
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($mdDialog) {
+  constructor($mdDialog: ng.material.IDialogService) {
     this.$mdDialog = $mdDialog;
   }
 
-  showExport($event, destination) {
+  showExport($event: MouseEvent, destination: string) {
     this.$mdDialog.show({
       targetEvent: $event,
       controller: 'ExportWorkspaceDialogController',

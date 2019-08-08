@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,6 +12,7 @@
 'use strict';
 import {CheAPI} from '../../../../components/api/che-api.factory';
 import {CheNotification} from '../../../../components/notification/che-notification.factory';
+import {WorkspacesService} from '../../../workspaces/workspaces.service';
 
 /**
  * Controller for creating factory from a workspace.
@@ -18,6 +20,9 @@ import {CheNotification} from '../../../../components/notification/che-notificat
  * @author Michail Kuznyetsov
  */
 export class FactoryFromWorkspaceCtrl {
+
+  static $inject = ['$filter', 'cheAPI', 'cheNotification', 'workspacesService'];
+
   private $filter: ng.IFilterService;
   private cheAPI: CheAPI;
   private cheNotification: CheNotification;
@@ -28,17 +33,20 @@ export class FactoryFromWorkspaceCtrl {
   private isLoading: boolean;
   private isImporting: boolean;
   private factoryContent: any;
+  private workspacesService: WorkspacesService;
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($filter: ng.IFilterService, cheAPI: CheAPI, cheNotification: CheNotification) {
+  constructor($filter: ng.IFilterService, cheAPI: CheAPI, cheNotification: CheNotification, workspacesService: WorkspacesService) {
     this.$filter = $filter;
     this.cheAPI = cheAPI;
     this.cheNotification = cheNotification;
+    this.workspacesService = workspacesService;
 
-    this.workspaces = cheAPI.getWorkspace().getWorkspaces();
+    this.workspaces = cheAPI.getWorkspace().getWorkspaces().filter((workspace: che.IWorkspace) => {
+      return this.workspacesService.isSupported(workspace);
+    });
     this.workspacesById = cheAPI.getWorkspace().getWorkspacesById();
 
     this.filtersWorkspaceSelected = {};
@@ -68,9 +76,9 @@ export class FactoryFromWorkspaceCtrl {
 
   /**
    * Get factory content from workspace
-   * @param workspace is selected workspace
+   * @param {che.IWorkspace} workspace is selected workspace
    */
-  getFactoryContentFromWorkspace(workspace: che.IWorkspace) {
+  getFactoryContentFromWorkspace(workspace: che.IWorkspace): void {
     let factoryContent = this.cheAPI.getFactory().getFactoryContentFromWorkspace(workspace);
     if (factoryContent) {
       this.factoryContent = this.$filter('json')(factoryContent, 2);
@@ -85,7 +93,7 @@ export class FactoryFromWorkspaceCtrl {
       this.isImporting = false;
       this.factoryContent = this.$filter('json')(factoryContent, 2);
     }, (error: any) => {
-      let message = (error.data && error.data.message) ? error.data.message : 'Get factory configuration failed.'
+      let message = (error.data && error.data.message) ? error.data.message : 'Get factory configuration failed.';
       if (error.status === 400) {
         message = 'Factory can\'t be created. The selected workspace has no projects defined. Project sources must be available from an external storage.';
       }
@@ -98,9 +106,9 @@ export class FactoryFromWorkspaceCtrl {
 
   /**
    * Set all workspaces in the filters of workspaces
-   * @param isChecked is setting value
+   * @param {boolean} isChecked is setting value
    */
-  setAllFiltersWorkspaces(isChecked: boolean) {
+  setAllFiltersWorkspaces(isChecked: boolean): void {
     this.workspaces.forEach((workspace: che.IWorkspace) => {
       this.filtersWorkspaceSelected[workspace.id] = isChecked;
     });
@@ -108,10 +116,10 @@ export class FactoryFromWorkspaceCtrl {
 
   /**
    * Get the workspace name by ID
-   * @param workspaceId
-   * @returns {String} workspace name
+   * @param {string} workspaceId
+   * @returns {string} workspace name
    */
-  getWorkspaceName(workspaceId: string) {
+  getWorkspaceName(workspaceId: string): string {
     let workspace = this.workspacesById.get(workspaceId);
     if (workspace && workspace.config.name) {
       return workspace.config.name;

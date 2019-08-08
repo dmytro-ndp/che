@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -86,20 +87,18 @@ public class StackService extends Service {
   @Produces(APPLICATION_JSON)
   @GenerateLink(rel = LINK_REL_CREATE_STACK)
   @ApiOperation(
-    value = "Create a new stack",
-    notes = "This operation can be performed only by authorized user",
-    response = StackDto.class
-  )
+      value = "Create a new stack",
+      notes = "This operation can be performed only by authorized user",
+      response = StackDto.class)
   @ApiResponses({
     @ApiResponse(code = 201, message = "The stack successfully created"),
     @ApiResponse(code = 400, message = "Missed required parameters, parameters are not valid"),
     @ApiResponse(code = 403, message = "The user does not have access to create a new stack"),
     @ApiResponse(
-      code = 409,
-      message =
-          "Conflict error occurred during the stack creation"
-              + "(e.g. The stack with such name already exists)"
-    ),
+        code = 409,
+        message =
+            "Conflict error occurred during the stack creation"
+                + "(e.g. The stack with such name already exists)"),
     @ApiResponse(code = 500, message = "Internal server error occurred")
   })
   public Response createStack(@ApiParam("The new stack") final StackDto stackDto)
@@ -115,7 +114,6 @@ public class StackService extends Service {
             .setCreator(userId)
             .setTags(stackDto.getTags())
             .setWorkspaceConfig(stackDto.getWorkspaceConfig())
-            .setSource(stackDto.getSource())
             .setComponents(stackDto.getComponents())
             .build();
     stackDao.create(newStack);
@@ -128,9 +126,8 @@ public class StackService extends Service {
   @Produces(APPLICATION_JSON)
   @GenerateLink(rel = LINK_REL_GET_STACK_BY_ID)
   @ApiOperation(
-    value = "Get the stack by id",
-    notes = "This operation can be performed for stack owner, or for predefined stacks"
-  )
+      value = "Get the stack by id",
+      notes = "This operation can be performed for stack owner, or for predefined stacks")
   @ApiResponses({
     @ApiResponse(code = 200, message = "The response contains requested stack entity"),
     @ApiResponse(code = 404, message = "The requested stack was not found"),
@@ -148,19 +145,17 @@ public class StackService extends Service {
   @Consumes(APPLICATION_JSON)
   @GenerateLink(rel = LINK_REL_UPDATE_STACK)
   @ApiOperation(
-    value =
-        "Update the stack by replacing all the existing data (exclude field \"creator\") with update"
-  )
+      value =
+          "Update the stack by replacing all the existing data (exclude field \"creator\") with update")
   @ApiResponses({
     @ApiResponse(code = 200, message = "The stack successfully updated"),
     @ApiResponse(code = 400, message = "Missed required parameters, parameters are not valid"),
     @ApiResponse(code = 403, message = "The user does not have access to update the stack"),
     @ApiResponse(
-      code = 409,
-      message =
-          "Conflict error occurred during stack update"
-              + "(e.g. Stack with such name already exists)"
-    ),
+        code = 409,
+        message =
+            "Conflict error occurred during stack update"
+                + "(e.g. Stack with such name already exists)"),
     @ApiResponse(code = 500, message = "Internal server error occurred")
   })
   public StackDto updateStack(
@@ -176,11 +171,10 @@ public class StackService extends Service {
             .setName(updateDto.getName())
             .setDescription(updateDto.getDescription())
             .setScope(updateDto.getScope())
-            //user can't edit creator
+            // user can't edit creator
             .setCreator(stack.getCreator())
             .setTags(updateDto.getTags())
             .setWorkspaceConfig(updateDto.getWorkspaceConfig())
-            .setSource(updateDto.getSource())
             .setComponents(updateDto.getComponents())
             .build();
 
@@ -206,20 +200,17 @@ public class StackService extends Service {
   @Produces(APPLICATION_JSON)
   @GenerateLink(rel = LINK_REL_SEARCH_STACKS)
   @ApiOperation(
-    value = "Get the list stacks with required tags",
-    notes = "This operation can be performed only by authorized user",
-    response = StackDto.class,
-    responseContainer = "List"
-  )
+      value = "Get the list stacks with required tags",
+      notes = "This operation can be performed only by authorized user",
+      response = StackDto.class,
+      responseContainer = "List")
   @ApiResponses({
     @ApiResponse(
-      code = 200,
-      message = "The response contains requested list stack entity with required tags"
-    ),
+        code = 200,
+        message = "The response contains requested list stack entity with required tags"),
     @ApiResponse(
-      code = 403,
-      message = "The user does not have access to get stack entity list with required tags"
-    ),
+        code = 403,
+        message = "The user does not have access to get stack entity list with required tags"),
     @ApiResponse(code = 500, message = "Internal server error occurred")
   })
   public List<StackDto> searchStacks(
@@ -246,10 +237,9 @@ public class StackService extends Service {
   @Produces("image/*")
   @GenerateLink(rel = LINK_REL_GET_ICON)
   @ApiOperation(
-    value = "Get icon by stack id",
-    notes = "This operation can be performed only by authorized user",
-    response = byte[].class
-  )
+      value = "Get icon by stack id",
+      notes = "This operation can be performed only by authorized user",
+      response = byte[].class)
   @ApiResponses({
     @ApiResponse(code = 200, message = "The response contains requested image entity"),
     @ApiResponse(code = 403, message = "The user does not have access to get image entity"),
@@ -277,16 +267,14 @@ public class StackService extends Service {
   @Produces(TEXT_PLAIN)
   @GenerateLink(rel = LINK_REL_UPLOAD_ICON)
   @ApiOperation(
-    value = "Upload icon for required stack",
-    notes = "This operation can be performed only by authorized stack owner"
-  )
+      value = "Upload icon for required stack",
+      notes = "This operation can be performed only by authorized stack owner")
   @ApiResponses({
     @ApiResponse(code = 200, message = "Image was successfully uploaded"),
     @ApiResponse(code = 400, message = "Missed required parameters, parameters are not valid"),
     @ApiResponse(
-      code = 403,
-      message = "The user does not have access upload image for stack with required id"
-    ),
+        code = 403,
+        message = "The user does not have access upload image for stack with required id"),
     @ApiResponse(code = 404, message = "The stack doesn't exist"),
     @ApiResponse(code = 500, message = "Internal server error occurred")
   })
@@ -312,23 +300,20 @@ public class StackService extends Service {
   @Path("/{id}/icon")
   @GenerateLink(rel = LINK_REL_DELETE_ICON)
   @ApiOperation(
-    value = "Delete icon for required stack",
-    notes = "This operation can be performed only by authorized stack owner"
-  )
+      value = "Delete icon for required stack",
+      notes = "This operation can be performed only by authorized stack owner")
   @ApiResponses({
     @ApiResponse(code = 204, message = "Icon was successfully removed"),
     @ApiResponse(code = 400, message = "Missed required parameters, parameters are not valid"),
     @ApiResponse(
-      code = 403,
-      message = "The user does not have access upload image for stack with required id"
-    ),
+        code = 403,
+        message = "The user does not have access upload image for stack with required id"),
     @ApiResponse(code = 404, message = "The stack or icon doesn't exist"),
     @ApiResponse(
-      code = 409,
-      message =
-          "Conflict error occurred during stack update"
-              + "(e.g. Stack with such name already exists)"
-    ),
+        code = 409,
+        message =
+            "Conflict error occurred during stack update"
+                + "(e.g. Stack with such name already exists)"),
     @ApiResponse(code = 500, message = "Internal server error occurred")
   })
   public void removeIcon(@ApiParam("The stack Id") @PathParam("id") final String id)

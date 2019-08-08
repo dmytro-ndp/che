@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,8 +16,13 @@ import {EnvironmentManager} from '../../../components/api/environment/environmen
 import {IEnvironmentManagerMachine} from '../../../components/api/environment/environment-manager-machine';
 import {CreateWorkspaceSvc} from './create-workspace.service';
 import {NamespaceSelectorSvc} from './namespace-selector/namespace-selector.service';
-import {StackSelectorSvc} from './stack-selector/stack-selector.service';
 import {RandomSvc} from '../../../components/utils/random.service';
+import {CheNotification} from '../../../components/notification/che-notification.factory';
+import {
+  ICheButtonDropdownMainAction,
+  ICheButtonDropdownOtherAction
+} from '../../../components/widget/button-dropdown/che-button-dropdown.directive';
+import {DevfileRegistry} from '../../../components/api/devfile-registry.factory';
 
 /**
  * This class is handling the controller for workspace creation.
@@ -24,6 +30,18 @@ import {RandomSvc} from '../../../components/utils/random.service';
  * @author Oleksii Kurinnyi
  */
 export class CreateWorkspaceController {
+
+  static $inject = ['$mdDialog', '$timeout', 'cheEnvironmentRegistry', 'createWorkspaceSvc', 'namespaceSelectorSvc',
+   'randomSvc', '$log', 'cheNotification', 'devfileRegistry'];
+
+  /**
+   * Dropdown button config.
+   */
+  headerCreateButtonConfig: {
+    mainAction: ICheButtonDropdownMainAction,
+    otherActions: Array<ICheButtonDropdownOtherAction>
+  };
+  private $mdDialog: ng.material.IDialogService;
   /**
    * Timeout service.
    */
@@ -41,33 +59,33 @@ export class CreateWorkspaceController {
    */
   private namespaceSelectorSvc: NamespaceSelectorSvc;
   /**
-   * Stack selector service.
-   */
-  private stackSelectorSvc: StackSelectorSvc;
-  /**
    * Generator for random strings.
    */
   private randomSvc: RandomSvc;
+  /**
+   * Logging service.
+   */
+  private $log: ng.ILogService;
+  /**
+   * Notification factory.
+   */
+  private cheNotification: CheNotification;
+  /**
+   * Devfile registry.
+   */
+  private devfileRegistry: DevfileRegistry;
   /**
    * The environment manager.
    */
   private environmentManager: EnvironmentManager;
   /**
-   * The selected stack.
+   * The selected devfile.
    */
-  private stack: che.IStack;
+  private selectedDevfile: che.IWorkspaceDevfile;
   /**
    * The selected namespace ID.
    */
   private namespaceId: string;
-  /**
-   * The list of machines of selected stack.
-   */
-  private stackMachines: Array<IEnvironmentManagerMachine>;
-  /**
-   * Desired memory limit by machine name.
-   */
-  private memoryByMachine: {[name: string]: number};
   /**
    * The map of forms.
    */
@@ -84,22 +102,29 @@ export class CreateWorkspaceController {
    * Hide progress loader if <code>true</code>.
    */
   private hideLoader: boolean;
-
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($timeout: ng.ITimeoutService, cheEnvironmentRegistry: CheEnvironmentRegistry, createWorkspaceSvc: CreateWorkspaceSvc, namespaceSelectorSvc: NamespaceSelectorSvc, stackSelectorSvc: StackSelectorSvc, randomSvc: RandomSvc) {
+  constructor($mdDialog: ng.material.IDialogService,
+              $timeout: ng.ITimeoutService,
+              cheEnvironmentRegistry: CheEnvironmentRegistry,
+              createWorkspaceSvc: CreateWorkspaceSvc,
+              namespaceSelectorSvc: NamespaceSelectorSvc,
+              randomSvc: RandomSvc,
+              $log: ng.ILogService,
+              cheNotification: CheNotification,
+              devfileRegistry: DevfileRegistry) {
+    this.$mdDialog = $mdDialog;
     this.$timeout = $timeout;
     this.cheEnvironmentRegistry = cheEnvironmentRegistry;
     this.createWorkspaceSvc = createWorkspaceSvc;
     this.namespaceSelectorSvc = namespaceSelectorSvc;
-    this.stackSelectorSvc = stackSelectorSvc;
     this.randomSvc = randomSvc;
+    this.$log = $log;
+    this.cheNotification = cheNotification;
+    this.devfileRegistry = devfileRegistry;
 
     this.usedNamesList = [];
-    this.stackMachines = [];
-    this.memoryByMachine = {};
     this.forms = new Map();
 
     this.namespaceId = this.namespaceSelectorSvc.getNamespaceId();
@@ -112,6 +137,30 @@ export class CreateWorkspaceController {
     // when stacks selector is rendered
     // and default stack is selected
     this.hideLoader = false;
+
+    // header toolbar
+    // dropdown button config
+    this.headerCreateButtonConfig = {
+      mainAction: {
+        title: 'Create & Open',
+        type: 'button',
+        action: () => {
+          this.createWorkspace().then((workspace: che.IWorkspace) => {
+            this.createWorkspaceSvc.redirectToIDE(workspace);
+          });
+        }
+      },
+      otherActions: [{
+        title: 'Create & Proceed Editing',
+        type: 'button',
+        action: () => {
+          this.createWorkspace().then((workspace: che.IWorkspace) => {
+            this.createWorkspaceSvc.redirectToDetails(workspace);
+          });
+        },
+        orderNumber: 1
+      }]
+    };
   }
 
   /**
@@ -119,37 +168,12 @@ export class CreateWorkspaceController {
    *
    * @param {string} stackId the stack ID
    */
-  onStackSelected(stackId: string): void {
+  onDevfileSelected(devfile: che.IWorkspaceDevfile): void {
     // tiny timeout for templates selector to be rendered
     this.$timeout(() => {
       this.hideLoader = true;
     }, 10);
-
-    this.stack = this.stackSelectorSvc.getStackById(stackId);
-
-    if (!this.stack.workspaceConfig) {
-      this.memoryByMachine = {};
-      this.stackMachines = [];
-      return;
-    }
-
-    const environmentName = this.stack.workspaceConfig.defaultEnv;
-    const environment = this.stack.workspaceConfig.environments[environmentName];
-    const recipeType = environment.recipe.type;
-    this.environmentManager = this.cheEnvironmentRegistry.getEnvironmentManager(recipeType);
-
-    this.memoryByMachine = {};
-    this.stackMachines = this.environmentManager.getMachines(environment);
-  }
-
-  /**
-   * Callback which is called when machine's memory limit is changes.
-   *
-   * @param {string} name a machine name
-   * @param {number} memoryLimitBytes a machine's memory limit in bytes
-   */
-  onRamChanged(name: string, memoryLimitBytes: number): void {
-    this.memoryByMachine[name] = memoryLimitBytes;
+    this.selectedDevfile = devfile;
   }
 
   /**
@@ -198,7 +222,7 @@ export class CreateWorkspaceController {
    * @return {boolean}
    */
   isCreateButtonDisabled(): boolean {
-    if (!this.namespaceId || (this.stack && !this.stack.workspaceConfig)) {
+    if (!this.namespaceId || !this.selectedDevfile) {
       return true;
     }
 
@@ -243,7 +267,7 @@ export class CreateWorkspaceController {
       this.usedNamesList = workspaces.filter((workspace: che.IWorkspace) => {
         return workspace.namespace === this.namespaceId;
       }).map((workspace: che.IWorkspace) => {
-        return workspace.config.name;
+        return this.createWorkspaceSvc.getWorkspaceName(workspace);
       });
     });
   }
@@ -268,25 +292,47 @@ export class CreateWorkspaceController {
 
   /**
    * Creates workspace.
+   *
+   * @returns {angular.IPromise<che.IWorkspace>}
    */
-  createWorkspace(): void {
+  createWorkspace(): ng.IPromise<che.IWorkspace> {
     // update workspace name
-    this.stack.workspaceConfig.name = this.workspaceName;
-
-    // update memory limits of machines
-    if (Object.keys(this.memoryByMachine).length !== 0) {
-      this.stackMachines.forEach((machine: IEnvironmentManagerMachine) => {
-        if (this.memoryByMachine[machine.name]) {
-          this.environmentManager.setMemoryLimit(machine, this.memoryByMachine[machine.name]);
-        }
-      });
-      const environmentName = this.stack.workspaceConfig.defaultEnv;
-      const environment = this.stack.workspaceConfig.environments[environmentName];
-      const newEnvironment = this.environmentManager.getEnvironment(environment, this.stackMachines);
-      this.stack.workspaceConfig.environments[environmentName] = newEnvironment;
-    }
-    let attributes = {stackId: this.stack.id};
-    this.createWorkspaceSvc.createWorkspace(this.stack.workspaceConfig, attributes);
+    let devfileSource = angular.copy(this.selectedDevfile);
+    devfileSource.metadata.name = this.workspaceName;
+    return this.createWorkspaceSvc.createWorkspaceFromDevfile(devfileSource, null);
   }
 
+  /**
+   * Creates a workspace and shows a dialogue window for a user to select
+   * whether to open Workspace Details page or the IDE.
+   *
+   * @param {MouseEvent} $event
+   */
+  createWorkspaceAndShowDialog($event: MouseEvent): void {
+    this.createWorkspace().then((workspace: che.IWorkspace) => {
+      this.$mdDialog.show({
+        targetEvent: $event,
+        controller: 'AfterCreationDialogController',
+        controllerAs: 'afterCreationDialogController',
+        bindToController: true,
+        clickOutsideToClose: true,
+        templateUrl: 'app/workspaces/create-workspace/after-creation-dialog/after-creation-dialog.html'
+      }).then(() => {
+        // when promise is resolved then open workspace in IDE
+        this.createWorkspaceSvc.redirectToIDE(workspace);
+      }, () => {
+        // when promise is rejected then open Workspace Details page
+        this.createWorkspaceSvc.redirectToDetails(workspace);
+      });
+    });
+  }
+
+  /**
+   * Creates a workspace and redirects to the IDE.
+   */
+  createWorkspaceAndOpenIDE(): void {
+    this.createWorkspace().then((workspace: che.IWorkspace) => {
+      this.createWorkspaceSvc.redirectToIDE(workspace);
+    });
+  }
 }

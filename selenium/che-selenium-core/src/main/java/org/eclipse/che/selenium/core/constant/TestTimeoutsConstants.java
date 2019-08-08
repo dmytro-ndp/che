@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -24,4 +25,5 @@ public final class TestTimeoutsConstants {
   public static final int REDRAW_UI_ELEMENTS_TIMEOUT_SEC = 5 * MULTIPLE;
   public static final int ATTACHING_ELEM_TO_DOM_SEC = 3 * MULTIPLE;
   public static final int MINIMUM_SEC = MULTIPLE;
+  public static final int DEFAULT_TIMEOUT = LOAD_PAGE_TIMEOUT_SEC;
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -68,6 +69,7 @@ public class DefaultHttpJsonRequest implements HttpJsonRequest {
   private String method;
   private Object body;
   private List<Pair<String, ?>> queryParams;
+  private List<Pair<String, String>> headers;
   private String authorizationHeaderValue;
 
   protected DefaultHttpJsonRequest(String url, String method) {
@@ -118,6 +120,16 @@ public class DefaultHttpJsonRequest implements HttpJsonRequest {
     return this;
   }
 
+  public HttpJsonRequest addHeader(@NotNull String name, @NotNull String value) {
+    requireNonNull(name, "Required non-null header name");
+    requireNonNull(value, "Required non-null header value");
+    if (headers == null) {
+      headers = new ArrayList<>();
+    }
+    headers.add(Pair.of(name, value));
+    return this;
+  }
+
   @Override
   public HttpJsonRequest setAuthorizationHeader(@NotNull String value) {
     requireNonNull(value, "Required non-null header value");
@@ -149,7 +161,7 @@ public class DefaultHttpJsonRequest implements HttpJsonRequest {
     if (method == null) {
       throw new IllegalStateException("Could not perform request, request method wasn't set");
     }
-    return doRequest(timeout, url, method, body, queryParams, authorizationHeaderValue);
+    return doRequest(timeout, url, method, body, queryParams, authorizationHeaderValue, headers);
   }
 
   /**
@@ -182,14 +194,15 @@ public class DefaultHttpJsonRequest implements HttpJsonRequest {
       String method,
       Object body,
       List<Pair<String, ?>> parameters,
-      String authorizationHeaderValue)
+      String authorizationHeaderValue,
+      List<Pair<String, String>> headers)
       throws IOException, ServerException, ForbiddenException, NotFoundException,
           UnauthorizedException, ConflictException, BadRequestException {
     final String authToken = EnvironmentContext.getCurrent().getSubject().getToken();
     final boolean hasQueryParams = parameters != null && !parameters.isEmpty();
     if (hasQueryParams || authToken != null) {
       final UriBuilder ub = UriBuilder.fromUri(url);
-      //remove sensitive information from url.
+      // remove sensitive information from url.
       ub.replaceQueryParam("token", EMPTY_ARRAY);
 
       if (hasQueryParams) {
@@ -202,9 +215,18 @@ public class DefaultHttpJsonRequest implements HttpJsonRequest {
     final HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
     conn.setConnectTimeout(timeout > 0 ? timeout : 60000);
     conn.setReadTimeout(timeout > 0 ? timeout : 60000);
+
+    final boolean hasHeaders = headers != null && !headers.isEmpty();
+
+    if (hasHeaders) {
+      for (Pair<String, String> header : headers) {
+        conn.setRequestProperty(header.first, header.second);
+      }
+    }
+
     try {
       conn.setRequestMethod(method);
-      //drop a hint for server side that we want to receive application/json
+      // drop a hint for server side that we want to receive application/json
       conn.addRequestProperty(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON);
       if (!isNullOrEmpty(authorizationHeaderValue)) {
         conn.setRequestProperty(HttpHeaders.AUTHORIZATION, authorizationHeaderValue);
@@ -215,8 +237,8 @@ public class DefaultHttpJsonRequest implements HttpJsonRequest {
         conn.addRequestProperty(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON);
         conn.setDoOutput(true);
 
-        if (HttpMethod.DELETE.equals(
-            method)) { //to avoid jdk bug described here http://bugs.java.com/view_bug.do?bug_id=7157360
+        if (HttpMethod.DELETE.equals(method)) { // to avoid jdk bug described here
+          // http://bugs.java.com/view_bug.do?bug_id=7157360
           conn.setRequestMethod(HttpMethod.POST);
           conn.setRequestProperty("X-HTTP-Method-Override", HttpMethod.DELETE);
         }
@@ -225,7 +247,6 @@ public class DefaultHttpJsonRequest implements HttpJsonRequest {
           output.write(DtoFactory.getInstance().toJson(body).getBytes());
         }
       }
-
       final int responseCode = conn.getResponseCode();
       if ((responseCode / 100) != 2) {
         InputStream in = conn.getErrorStream();
@@ -237,7 +258,9 @@ public class DefaultHttpJsonRequest implements HttpJsonRequest {
           str = CharStreams.toString(reader);
         }
         final String contentType = conn.getContentType();
-        if (contentType != null && contentType.startsWith(MediaType.APPLICATION_JSON)) {
+        if (contentType != null
+            && (contentType.startsWith(MediaType.APPLICATION_JSON)
+                || contentType.startsWith("application/vnd.api+json"))) {
           final ServiceError serviceError =
               DtoFactory.getInstance().createDtoFromJson(str, ServiceError.class);
           if (serviceError.getMessage() != null) {
@@ -266,12 +289,14 @@ public class DefaultHttpJsonRequest implements HttpJsonRequest {
       final String contentType = conn.getContentType();
       if (responseCode != HttpURLConnection.HTTP_NO_CONTENT
           && contentType != null
-          && !contentType.startsWith(MediaType.APPLICATION_JSON)) {
+          && !(contentType.startsWith(MediaType.APPLICATION_JSON)
+              || contentType.startsWith("application/vnd.api+json"))) {
         throw new IOException(conn.getResponseMessage());
       }
 
       try (Reader reader = new InputStreamReader(conn.getInputStream())) {
-        return new DefaultHttpJsonResponse(CharStreams.toString(reader), responseCode);
+        return new DefaultHttpJsonResponse(
+            CharStreams.toString(reader), responseCode, conn.getHeaderFields());
       }
     } finally {
       conn.disconnect();

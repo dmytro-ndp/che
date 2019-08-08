@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.Page;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.model.factory.Factory;
 import org.eclipse.che.api.factory.server.model.impl.AuthorImpl;
@@ -117,9 +119,8 @@ public class FactoryManager {
    * @return stored data, if specified attributes is correct
    * @throws ServerException when any server errors occurs
    */
-  @SuppressWarnings("unchecked")
-  public <T extends List<? extends Factory>> T getByAttribute(
+  public Page<? extends Factory> getByAttribute(
       int maxItems, int skipCount, List<Pair<String, String>> attributes) throws ServerException {
-    return (T) factoryDao.getByAttribute(maxItems, skipCount, attributes);
+    return factoryDao.getByAttributes(maxItems, skipCount, attributes);
   }
 }

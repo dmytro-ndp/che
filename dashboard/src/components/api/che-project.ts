@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -39,7 +40,7 @@ export class CheProject {
   /**
    * Default constructor that is using resource
    */
-  constructor($resource: ng.resource.IResourceService, $q: ng.IQService, wsagentPath: string) {
+  constructor($resource: ng.resource.IResourceService, $q: ng.IQService, wsagentPath: string, machineToken: string) {
     this.$q = $q;
     this.$resource = $resource;
 
@@ -54,16 +55,24 @@ export class CheProject {
 
     // remote call
     this.remoteProjectsAPI = <ICHEProjectResource<any>>this.$resource(wsagentPath + '/project', {}, {
-      import: {method: 'POST', url: wsagentPath + '/project/import/:path'},
-      create: {method: 'POST', url: wsagentPath + '/project?name=:path'},
-      batchCreate: {method: 'POST', url: wsagentPath + '/project/batch', isArray: true},
-      details: {method: 'GET', url: wsagentPath + '/project/:path'},
-      estimate: {method: 'GET', url: wsagentPath + '/project/estimate/:path?type=:type'},
-      rename: {method: 'POST', url: wsagentPath + '/project/rename/:path?name=:name'},
-      remove: {method: 'DELETE', url: wsagentPath + '/project/:path'},
-      resolve: {method: 'GET', url: wsagentPath + '/project/resolve/:path', isArray: true},
-      update: {method: 'PUT', url: wsagentPath + '/project/:path'}
+      import: {method: 'POST', url: wsagentPath + '/project/import/:path', headers: this.getRequestHeaders(machineToken)},
+      create: {method: 'POST', url: wsagentPath + '/project?name=:path', headers: this.getRequestHeaders(machineToken)},
+      batchCreate: {method: 'POST', url: wsagentPath + '/project/batch', isArray: true, headers: this.getRequestHeaders(machineToken)},
+      details: {method: 'GET', url: wsagentPath + '/project/:path', headers: this.getRequestHeaders(machineToken)},
+      estimate: {method: 'GET', url: wsagentPath + '/project/estimate/:path?type=:type', headers: this.getRequestHeaders(machineToken)},
+      rename: {method: 'POST', url: wsagentPath + '/project/rename/:path?name=:name', headers: this.getRequestHeaders(machineToken)},
+      remove: {method: 'DELETE', url: wsagentPath + '/project/:path', headers: this.getRequestHeaders(machineToken)},
+      resolve: {method: 'GET', url: wsagentPath + '/project/resolve/:path', isArray: true, headers: this.getRequestHeaders(machineToken)},
+      update: {method: 'PUT', url: wsagentPath + '/project/:path', headers: this.getRequestHeaders(machineToken)}
     });
+  }
+
+  getRequestHeaders(machineToken: string): any {
+    if (!machineToken) {
+      return;
+    }
+
+    return {'Authorization': machineToken};
   }
 
   /**
@@ -109,11 +118,11 @@ export class CheProject {
    * @returns {string} a name
    */
   getFullName(profile: che.IProfile): string {
-    var firstName = profile.attributes.firstName;
+    let firstName = profile.attributes.firstName;
     if (!firstName) {
       firstName = '';
     }
-    var lastName = profile.attributes.lastName;
+    let lastName = profile.attributes.lastName;
     if (!lastName) {
       lastName = '';
     }
@@ -127,12 +136,12 @@ export class CheProject {
    * @returns {ng.IPromise<any>}
    */
   fetchProjectDetails(workspaceId: string, projectPath: string): ng.IPromise<any> {
-    //TODO why we cannot use project path
+    // todo why we cannot use project path
     let projectName = projectPath[0] === '/' ? projectPath.slice(1) : projectPath;
     let promise = this.remoteProjectsAPI.details({path: projectName}).$promise;
 
     // check if it was OK or not
-    let parsedResultPromise = promise.then((projectDetails) => {
+    let parsedResultPromise = promise.then((projectDetails: any) => {
       if (projectDetails) {
         projectDetails.workspaceId = workspaceId;
         this.projectDetailsMap.set(projectPath, projectDetails);
@@ -185,7 +194,7 @@ export class CheProject {
   fetchEstimate(projectPath: string, projectType: string): ng.IPromise<any> {
     let projectName = projectPath[0] === '/' ? projectPath.slice(1) : projectPath;
     let promise = this.remoteProjectsAPI.estimate({path: projectName, type: projectType}).$promise;
-    let parsedResultPromise = promise.then((estimate) => {
+    let parsedResultPromise = promise.then((estimate: any) => {
       if (estimate) {
         this.estimateMap.set(projectName + projectType, estimate);
       }
@@ -210,7 +219,7 @@ export class CheProject {
   fetchResolve(projectPath: string): ng.IPromise<any> {
     let projectName = projectPath[0] === '/' ? projectPath.slice(1) : projectPath;
     let promise = this.remoteProjectsAPI.resolve({path: projectName}).$promise;
-    let parsedResultPromise = promise.then((resolve) => {
+    let parsedResultPromise = promise.then((resolve: any) => {
       if (resolve) {
         this.resolveMap.set(projectName, resolve);
       }

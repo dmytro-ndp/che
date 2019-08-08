@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,6 +20,9 @@ import {CheUser} from '../../../../components/api/che-user.factory';
  * @author Oleksii Kurinnyi
  */
 export class NamespaceSelectorSvc {
+
+  static $inject = ['$location', '$log', '$q', 'cheNamespaceRegistry', 'cheUser'];
+
   /**
    * Location service.
    */
@@ -57,7 +61,6 @@ export class NamespaceSelectorSvc {
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
   constructor($location: ng.ILocationService, $log: ng.ILogService, $q: ng.IQService,
               cheNamespaceRegistry: CheNamespaceRegistry, cheUser: CheUser) {
@@ -82,8 +85,7 @@ export class NamespaceSelectorSvc {
       this.namespaceLabels = namespaces.map((namespace: che.INamespace) => {
         return namespace.label;
       });
-
-      return this.$q.when();
+      return this.fetchNamespaceInfoById(this.namespaceId);
     }
 
     return this.cheNamespaceRegistry.fetchNamespaces().then(() => {
@@ -97,7 +99,9 @@ export class NamespaceSelectorSvc {
       this.namespaceLabels = namespaces.map((namespace: che.INamespace) => {
         return namespace.label;
       });
-      return this.fetchNamespaceInfoById(this.namespaceId);
+      return (this.namespaceId) ? this.fetchNamespaceInfoById(this.namespaceId) : this.$q.when(null);
+    }).catch((error: any) => {
+      return this.$q.when(null);
     }).then(() => {
       if (this.namespaceId) {
         return this.$q.when();
@@ -113,9 +117,6 @@ export class NamespaceSelectorSvc {
         const user = this.cheUser.getUser();
         this.namespaceId = user.name;
       });
-    }).catch((error: any) => {
-      // this.$log.error(`Cannot fetch namespaces: ${error}`);
-      return this.$q.reject(`Cannot fetch namespaces: ${error}`);
     }).then(() => {
       return this.$q.when(this.namespaceId);
     });

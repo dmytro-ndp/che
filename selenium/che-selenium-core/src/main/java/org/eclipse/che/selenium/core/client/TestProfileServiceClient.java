@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,14 +18,13 @@ import java.util.Map;
 import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.selenium.core.provider.TestApiEndpointUrlProvider;
 import org.eclipse.che.selenium.core.user.DefaultTestUser;
-import org.eclipse.che.selenium.core.user.TestUser;
 
 /** @author Musienko Maxim */
 @Singleton
 public class TestProfileServiceClient {
   private final String apiEndpoint;
   private final HttpJsonRequestFactory requestFactory;
-  private final TestUser defaultTestUser;
+  private final DefaultTestUser defaultTestUser;
 
   @Inject
   public TestProfileServiceClient(
@@ -36,10 +36,9 @@ public class TestProfileServiceClient {
     this.defaultTestUser = defaultTestUser;
   }
 
-  public void setAttributes(Map<String, String> attributes, String authToken) throws Exception {
+  public void setAttributes(Map<String, String> attributes) throws Exception {
     requestFactory
         .fromUrl(apiEndpoint + "profile/attributes")
-        .setAuthorizationHeader(authToken)
         .usePutMethod()
         .setBody(attributes)
         .request();
@@ -51,6 +50,6 @@ public class TestProfileServiceClient {
             "firstName", name,
             "lastName", lastName);
 
-    setAttributes(attributes, defaultTestUser.getAuthToken());
+    setAttributes(attributes);
   }
 }

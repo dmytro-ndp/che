@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,7 +15,7 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import javax.naming.NamingException;
 import org.eclipse.persistence.internal.sessions.AbstractSession;
-import org.eclipse.persistence.internal.sessions.cdi.EntityListenerInjectionManager;
+import org.eclipse.persistence.internal.sessions.cdi.InjectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +44,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Yevhenii Voevodin
  */
-public class GuiceEntityListenerInjectionManager implements EntityListenerInjectionManager {
+public class GuiceEntityListenerInjectionManager implements InjectionManager {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(GuiceEntityListenerInjectionManager.class);
@@ -51,7 +52,7 @@ public class GuiceEntityListenerInjectionManager implements EntityListenerInject
   @Inject private Injector injector;
 
   @Override
-  public Object createEntityListenerAndInjectDependancies(Class entityListenerClass)
+  public Object createManagedBeanAndInjectDependencies(Class entityListenerClass)
       throws NamingException {
     try {
       return injector.getInstance(entityListenerClass);

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,10 +14,12 @@ package org.eclipse.che.api.workspace.server.model.impl;
 import static java.util.stream.Collectors.toMap;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import javax.persistence.CascadeType;
 import javax.persistence.CollectionTable;
 import javax.persistence.Column;
@@ -36,8 +39,9 @@ import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 import javax.persistence.Transient;
-import org.eclipse.che.api.core.model.project.ProjectConfig;
-import org.eclipse.che.api.core.model.project.SourceStorage;
+import org.eclipse.che.api.core.model.workspace.config.ProjectConfig;
+import org.eclipse.che.api.core.model.workspace.config.SourceStorage;
+import org.eclipse.che.api.workspace.shared.ProjectProblemImpl;
 
 /**
  * Data object for {@link ProjectConfig}.
@@ -72,9 +76,8 @@ public class ProjectConfigImpl implements ProjectConfig {
 
   @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(
-    name = "projectconfig_mixins",
-    joinColumns = @JoinColumn(name = "projectconfig_id")
-  )
+      name = "projectconfig_mixins",
+      joinColumns = @JoinColumn(name = "projectconfig_id"))
   @Column(name = "mixins")
   private List<String> mixins;
 
@@ -86,6 +89,8 @@ public class ProjectConfigImpl implements ProjectConfig {
   // Mapping delegated to 'dbAttributes' field
   // as it is impossible to map nested list directly
   @Transient private Map<String, List<String>> attributes;
+
+  @Transient private List<ProjectProblemImpl> problems;
 
   public ProjectConfigImpl() {}
 
@@ -108,6 +113,16 @@ public class ProjectConfigImpl implements ProjectConfig {
       source =
           new SourceStorageImpl(
               sourceStorage.getType(), sourceStorage.getLocation(), sourceStorage.getParameters());
+    }
+    if (projectConfig.getProblems() != null) {
+      problems =
+          projectConfig
+              .getProblems()
+              .stream()
+              .map(problem -> new ProjectProblemImpl(problem.getCode(), problem.getMessage()))
+              .collect(Collectors.toList());
+    } else {
+      problems = Collections.emptyList();
     }
   }
 
@@ -174,6 +189,11 @@ public class ProjectConfigImpl implements ProjectConfig {
   @Override
   public SourceStorageImpl getSource() {
     return source;
+  }
+
+  @Override
+  public List<ProjectProblemImpl> getProblems() {
+    return problems;
   }
 
   public void setSource(SourceStorageImpl sourceStorage) {
@@ -285,10 +305,9 @@ public class ProjectConfigImpl implements ProjectConfig {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
-      name = "projectattribute_values",
-      joinColumns = @JoinColumn(name = "projectattribute_id")
-    )
-    @Column(name = "values")
+        name = "projectattribute_values",
+        joinColumns = @JoinColumn(name = "projectattribute_id"))
+    @Column(name = "attribute_values")
     private List<String> values;
 
     public Attribute() {}

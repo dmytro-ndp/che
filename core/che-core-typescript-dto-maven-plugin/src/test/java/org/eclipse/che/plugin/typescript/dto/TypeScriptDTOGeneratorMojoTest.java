@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -80,5 +81,24 @@ public class TypeScriptDTOGeneratorMojoTest {
     Assert.assertTrue(
         "The MyCustomDTO has not been generated in the typescript definition file.",
         foundMyCustomDTO);
+  }
+
+  @Test
+  public void checkDTSFileCreated() throws Exception {
+    File projectCopy = this.resources.getBasedir("project-d-ts");
+    File pom = new File(projectCopy, "pom.xml");
+    assertNotNull(pom);
+    assertTrue(pom.exists());
+
+    TypeScriptDTOGeneratorMojo mojo =
+        (TypeScriptDTOGeneratorMojo) this.rule.lookupMojo("build", pom);
+    configure(mojo, projectCopy);
+    mojo.execute();
+
+    File typeScriptFile = mojo.getTypescriptFile();
+    Assert.assertNotNull(typeScriptFile);
+
+    // Check file has been generated
+    Assert.assertTrue(typeScriptFile.exists());
   }
 }

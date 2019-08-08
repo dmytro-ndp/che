@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,7 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
 import javax.persistence.Column;
+import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
@@ -29,11 +32,10 @@ import javax.persistence.JoinColumn;
 import javax.persistence.MapKeyColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import org.eclipse.che.api.core.model.machine.Command;
-import org.eclipse.che.api.core.model.project.ProjectConfig;
-import org.eclipse.che.api.core.model.workspace.Environment;
 import org.eclipse.che.api.core.model.workspace.WorkspaceConfig;
-import org.eclipse.che.api.machine.server.model.impl.CommandImpl;
+import org.eclipse.che.api.core.model.workspace.config.Command;
+import org.eclipse.che.api.core.model.workspace.config.Environment;
+import org.eclipse.che.api.core.model.workspace.config.ProjectConfig;
 import org.eclipse.che.commons.annotation.Nullable;
 
 /**
@@ -61,7 +63,7 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
   @Column(name = "description", columnDefinition = "TEXT")
   private String description;
 
-  @Column(name = "defaultenv", nullable = false)
+  @Column(name = "defaultenv", nullable = true)
   private String defaultEnv;
 
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
@@ -77,6 +79,14 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
   @MapKeyColumn(name = "environments_key")
   private Map<String, EnvironmentImpl> environments;
 
+  @ElementCollection(fetch = FetchType.EAGER)
+  @CollectionTable(
+      name = "che_workspace_cfg_attributes",
+      joinColumns = @JoinColumn(name = "workspace_id"))
+  @MapKeyColumn(name = "attributes_key")
+  @Column(name = "attributes")
+  private Map<String, String> attributes;
+
   public WorkspaceConfigImpl() {}
 
   public WorkspaceConfigImpl(
@@ -85,7 +95,8 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
       String defaultEnv,
       List<? extends Command> commands,
       List<? extends ProjectConfig> projects,
-      Map<String, ? extends Environment> environments) {
+      Map<String, ? extends Environment> environments,
+      Map<String, String> attributes) {
     this.name = name;
     this.defaultEnv = defaultEnv;
     this.description = description;
@@ -102,6 +113,9 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
     if (projects != null) {
       this.projects = projects.stream().map(ProjectConfigImpl::new).collect(toList());
     }
+    if (attributes != null) {
+      this.attributes = new HashMap<>(attributes);
+    }
   }
 
   public WorkspaceConfigImpl(WorkspaceConfig workspaceConfig) {
@@ -111,7 +125,8 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
         workspaceConfig.getDefaultEnv(),
         workspaceConfig.getCommands(),
         workspaceConfig.getProjects(),
-        workspaceConfig.getEnvironments());
+        workspaceConfig.getEnvironments(),
+        workspaceConfig.getAttributes());
   }
 
   @Override
@@ -169,13 +184,25 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
   @Override
   public Map<String, EnvironmentImpl> getEnvironments() {
     if (environments == null) {
-      return new HashMap<>();
+      environments = new HashMap<>();
     }
     return environments;
   }
 
   public void setEnvironments(Map<String, EnvironmentImpl> environments) {
     this.environments = environments;
+  }
+
+  @Override
+  public Map<String, String> getAttributes() {
+    if (attributes == null) {
+      attributes = new HashMap<>();
+    }
+    return attributes;
+  }
+
+  public void setAttributes(Map<String, String> attributes) {
+    this.attributes = attributes;
   }
 
   @Override
@@ -193,7 +220,8 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
         && Objects.equals(defaultEnv, that.defaultEnv)
         && getCommands().equals(that.getCommands())
         && getProjects().equals(that.getProjects())
-        && getEnvironments().equals(that.getEnvironments());
+        && getEnvironments().equals(that.getEnvironments())
+        && getAttributes().equals(that.getAttributes());
   }
 
   @Override
@@ -206,6 +234,7 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
     hash = 31 * hash + getCommands().hashCode();
     hash = 31 * hash + getProjects().hashCode();
     hash = 31 * hash + getEnvironments().hashCode();
+    hash = 31 * hash + getAttributes().hashCode();
     return hash;
   }
 
@@ -229,6 +258,8 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
         + projects
         + ", environments="
         + environments
+        + ", attributes="
+        + attributes
         + '}';
   }
 
@@ -241,16 +272,17 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
 
     private String name;
     private String defaultEnvName;
+    private String description;
     private List<? extends Command> commands;
     private List<? extends ProjectConfig> projects;
     private Map<String, ? extends Environment> environments;
-    private String description;
+    private Map<String, String> attributes;
 
     private WorkspaceConfigImplBuilder() {}
 
     public WorkspaceConfigImpl build() {
       return new WorkspaceConfigImpl(
-          name, description, defaultEnvName, commands, projects, environments);
+          name, description, defaultEnvName, commands, projects, environments, attributes);
     }
 
     public WorkspaceConfigImplBuilder fromConfig(WorkspaceConfig workspaceConfig) {
@@ -291,6 +323,11 @@ public class WorkspaceConfigImpl implements WorkspaceConfig {
 
     public WorkspaceConfigImplBuilder setDescription(String description) {
       this.description = description;
+      return this;
+    }
+
+    public WorkspaceConfigImplBuilder setAttributes(Map<String, String> attributes) {
+      this.attributes = attributes;
       return this;
     }
   }

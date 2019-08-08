@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,7 +21,9 @@ import java.io.Reader;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.AbstractMap;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -28,12 +31,17 @@ import java.util.stream.Collectors;
 import org.eclipse.che.inject.CheBootstrap;
 
 /**
- * Represent in memory based storage of test configuration. Values of configuration load in
- * following sequence: 1. Default configuration from target/conf/selenium.properties file. 2. All
- * properties from CHE_LOCAL_CONF_DIR directory. 3. From java system properties (will be given
- * prefix "sys."). 4. From environment variables (will be given prefix "env."). "_" is replaced by
- * "." in names. Variables which start from "che." or "codenvy." aren't been given additional prefix
- * "sys." or "env.".
+ * Represents in memory based storage of the test configuration.
+ *
+ * <p>Values of configuration are loaded in the following sequence:<br>
+ * 1. Default configuration from target/conf/selenium.properties file.<br>
+ * 2. All properties from CHE_LOCAL_CONF_DIR directory.<br>
+ * 3. From java system properties (will be given prefix "sys.").<br>
+ * 4. From environment variables (will be given prefix "env."). Symbol "_" is replaced by "." and
+ * "__" is replaced by "_" in names of environment variables.<br>
+ * Variables which start from "che." or "codenvy." don't have an additional prefix "sys." or "env.".
+ *
+ * @author Sergii Kabashniuk
  */
 @Singleton
 public class SeleniumTestConfiguration extends InMemoryTestConfiguration {
@@ -57,13 +65,13 @@ public class SeleniumTestConfiguration extends InMemoryTestConfiguration {
               .stream()
               .filter(new PropertyNamePrefixPredicate<>("che.", "codenvy."))
               .map(e -> new AbstractMap.SimpleEntry<>((String) e.getKey(), ((String) e.getValue())))
-              .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue())));
+              .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue)));
       addAll(
           System.getProperties()
               .entrySet()
               .stream()
               .map(e -> new AbstractMap.SimpleEntry<>("sys." + e.getKey(), ((String) e.getValue())))
-              .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue())));
+              .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue)));
     }
   }
 
@@ -77,14 +85,14 @@ public class SeleniumTestConfiguration extends InMemoryTestConfiguration {
               .stream()
               .filter(new PropertyNamePrefixPredicate<>("CHE_", "CODENVY_"))
               .map(new EnvironmentVariableToSystemPropertyFormatNameConverter())
-              .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue())));
+              .collect(Collectors.toMap(Entry::getKey, Entry::getValue)));
       addAll(
           System.getenv()
               .entrySet()
               .stream()
               .map(new EnvironmentVariableToSystemPropertyFormatNameConverter())
               .map(e -> new AbstractMap.SimpleEntry<>("env." + e.getKey(), e.getValue()))
-              .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue())));
+              .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue)));
     }
   }
 
@@ -119,6 +127,7 @@ public class SeleniumTestConfiguration extends InMemoryTestConfiguration {
       name = name.replace("__", "=");
       name = name.replace('_', '.');
       name = name.replace("=", "_");
+
       return new AbstractMap.SimpleEntry<>(name, entry.getValue());
     }
   }

@@ -1,18 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.workspace.server.spi;
 
-import java.util.List;
+import java.util.Optional;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.Page;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
 
@@ -68,10 +70,11 @@ public interface WorkspaceDao {
    * <p>Doesn't throw an exception when workspace with given {@code id} does not exist
    *
    * @param id workspace identifier
+   * @return removed workspace
    * @throws NullPointerException when {@code id} is null
    * @throws ServerException when any other error occurs during workspace removing
    */
-  void remove(String id) throws ServerException;
+  Optional<WorkspaceImpl> remove(String id) throws ServerException;
 
   /**
    * Gets workspace by identifier.
@@ -105,7 +108,8 @@ public interface WorkspaceDao {
    * @throws NullPointerException when {@code owner} is null
    * @throws ServerException when any other error occurs during workspaces fetching
    */
-  List<WorkspaceImpl> getByNamespace(String namespace) throws ServerException;
+  Page<WorkspaceImpl> getByNamespace(String namespace, int maxItems, long skipCount)
+      throws ServerException;
 
   /**
    * Gets list of workspaces which user can read
@@ -114,7 +118,8 @@ public interface WorkspaceDao {
    * @return list of workspaces which user can read
    * @throws ServerException when any other error occurs during workspaces fetching
    */
-  List<WorkspaceImpl> getWorkspaces(String userId) throws ServerException;
+  Page<WorkspaceImpl> getWorkspaces(String userId, int maxItems, long skipCount)
+      throws ServerException;
 
   /**
    * Gets workspaces by temporary attribute.
@@ -127,6 +132,6 @@ public interface WorkspaceDao {
    * @throws ServerException when any other error occurs during workspaces fetching
    * @throws IllegalArgumentException when {@code maxItems} or {@code skipCount} is negative
    */
-  List<WorkspaceImpl> getWorkspaces(boolean isTemporary, int skipCount, int maxItems)
+  Page<WorkspaceImpl> getWorkspaces(boolean isTemporary, int maxItems, long skipCount)
       throws ServerException;
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,11 +14,10 @@ package org.eclipse.che.api.core.rest;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.eclipse.che.api.core.util.LinksHelper.createLink;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -98,11 +98,17 @@ public class DefaultHttpJsonRequestTest {
     final DefaultHttpJsonRequest request = spy(new DefaultHttpJsonRequest(link));
     doReturn(new DefaultHttpJsonResponse("", 200))
         .when(request)
-        .doRequest(anyInt(), anyString(), anyString(), anyObject(), any(), anyString());
-
+        .doRequest(
+            anyInt(),
+            anyString(),
+            anyString(),
+            nullable(Object.class),
+            nullable(List.class),
+            nullable(String.class),
+            nullable(List.class));
     request.request();
 
-    verify(request).doRequest(0, DEFAULT_URL, "POST", null, null, null);
+    verify(request).doRequest(0, DEFAULT_URL, "POST", null, null, null, null);
   }
 
   @Test
@@ -115,6 +121,7 @@ public class DefaultHttpJsonRequestTest {
         .setTimeout(10_000_000)
         .addQueryParam("name", "value")
         .addQueryParam("name2", "value2")
+        .addHeader("Connection", "close")
         .request();
 
     verify(request)
@@ -124,7 +131,8 @@ public class DefaultHttpJsonRequestTest {
             "PUT",
             body,
             asList(Pair.of("name", "value"), Pair.of("name2", "value2")),
-            null);
+            null,
+            asList(Pair.of("Connection", "close")));
   }
 
   @Test
@@ -141,6 +149,7 @@ public class DefaultHttpJsonRequestTest {
             eq("http://localhost:8080"),
             eq("POST"),
             mapCaptor.capture(),
+            eq(null),
             eq(null),
             eq(null));
     assertTrue(mapCaptor.getValue() instanceof JsonStringMap);
@@ -160,6 +169,7 @@ public class DefaultHttpJsonRequestTest {
             eq("POST"),
             listCaptor.capture(),
             eq(null),
+            eq(null),
             eq(null));
     assertTrue(listCaptor.getValue() instanceof JsonArray);
     assertEquals(listCaptor.getValue(), body);
@@ -168,7 +178,7 @@ public class DefaultHttpJsonRequestTest {
   @Test
   public void defaultMethodIsGet() throws Exception {
     request.request();
-    verify(request).doRequest(0, DEFAULT_URL, HttpMethod.GET, null, null, null);
+    verify(request).doRequest(0, DEFAULT_URL, HttpMethod.GET, null, null, null, null);
   }
 
   @Test(expectedExceptions = NullPointerException.class)
@@ -210,6 +220,21 @@ public class DefaultHttpJsonRequestTest {
   @Test(expectedExceptions = NullPointerException.class)
   public void shouldThrowNullPointerExceptionWhenQueryParamsAreNull() throws Exception {
     new DefaultHttpJsonRequest("http://localhost:8080").addQueryParams(null);
+  }
+
+  @Test(expectedExceptions = NullPointerException.class)
+  public void shouldThrowNullPointerExceptionWhenHeaderNameIsNull() throws Exception {
+    new DefaultHttpJsonRequest("http://localhost:8080").addHeader(null, "close");
+  }
+
+  @Test(expectedExceptions = NullPointerException.class)
+  public void shouldThrowNullPointerExceptionWhenHeaderValueIsNull() throws Exception {
+    new DefaultHttpJsonRequest("http://localhost:8080").addHeader("Connection", null);
+  }
+
+  @Test(expectedExceptions = NullPointerException.class)
+  public void shouldThrowNullPointerExceptionWhenHeadersAreNull() throws Exception {
+    new DefaultHttpJsonRequest("http://localhost:8080").addHeaders(null);
   }
 
   @Test(expectedExceptions = NullPointerException.class)
@@ -365,6 +390,13 @@ public class DefaultHttpJsonRequestTest {
   private void prepareResponse(String response) throws Exception {
     doReturn(new DefaultHttpJsonResponse(response, 200))
         .when(request)
-        .doRequest(anyInt(), anyString(), anyString(), anyObject(), any(), anyString());
+        .doRequest(
+            anyInt(),
+            anyString(),
+            anyString(),
+            nullable(Object.class),
+            nullable(List.class),
+            nullable(String.class),
+            nullable(List.class));
   }
 }

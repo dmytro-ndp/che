@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -29,8 +30,8 @@ import org.eclipse.che.dto.server.JsonSerializable;
 /**
  * Defines simple set of methods for requesting json objects.
  *
- * <p>Unlike {@link HttpJsonHelper} - provides <i>builder-like</i> style for building requests and
- * getting responses.
+ * <p>Unlike {@link HttpRequestHelper} - provides <i>builder-like</i> style for building requests
+ * and getting responses.
  *
  * <p>Simple use-cases:
  *
@@ -109,6 +110,16 @@ public interface HttpJsonRequest {
    * @throws NullPointerException when either name or value is null
    */
   HttpJsonRequest addQueryParam(@NotNull String name, @NotNull Object value);
+
+  /**
+   * Adds header to the request.
+   *
+   * @param name header name
+   * @param value header value
+   * @return this request instance
+   * @throws NullPointerException when either header name or value is null
+   */
+  HttpJsonRequest addHeader(@NotNull String name, @NotNull String value);
 
   /**
    * Adds authorization header to the request.
@@ -204,6 +215,18 @@ public interface HttpJsonRequest {
   default HttpJsonRequest addQueryParams(@NotNull Map<String, ?> params) {
     Objects.requireNonNull(params, "Required non-null query parameters");
     params.forEach(this::addQueryParam);
+    return this;
+  }
+
+  /**
+   * Adds set of headers to this request.
+   *
+   * @param headers map with headers
+   * @return this request instance
+   */
+  default HttpJsonRequest addHeaders(@NotNull Map<String, String> headers) {
+    Objects.requireNonNull(headers, "Required non-null headers");
+    headers.forEach(this::addHeader);
     return this;
   }
 }

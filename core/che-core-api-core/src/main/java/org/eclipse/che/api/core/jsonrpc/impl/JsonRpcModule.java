@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.core.jsonrpc.impl;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonParser;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -21,8 +23,10 @@ import org.eclipse.che.api.core.jsonrpc.commons.JsonRpcQualifier;
 import org.eclipse.che.api.core.jsonrpc.commons.JsonRpcUnmarshaller;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerConfigurator;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestProcessor;
+import org.eclipse.che.api.core.jsonrpc.commons.RequestProcessorConfigurationProvider;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestTransmitter;
 import org.eclipse.che.api.core.jsonrpc.commons.TimeoutActionRunner;
+import org.eclipse.che.dto.server.DtoFactory;
 
 public class JsonRpcModule extends AbstractModule {
   @Override
@@ -36,6 +40,8 @@ public class JsonRpcModule extends AbstractModule {
     bind(JsonRpcComposer.class).to(GsonJsonRpcComposer.class);
 
     bind(RequestProcessor.class).to(ServerSideRequestProcessor.class);
+    bind(RequestProcessorConfigurationProvider.class)
+        .to(ServerSideRequestProcessorConfigurator.class);
     bind(TimeoutActionRunner.class).to(ServerSideTimeoutActionRunner.class);
   }
 
@@ -43,5 +49,11 @@ public class JsonRpcModule extends AbstractModule {
   @Singleton
   public JsonParser jsonParser() {
     return new JsonParser();
+  }
+
+  @Provides
+  @Singleton
+  protected Gson gson() {
+    return DtoFactory.getInstance().getGson();
   }
 }

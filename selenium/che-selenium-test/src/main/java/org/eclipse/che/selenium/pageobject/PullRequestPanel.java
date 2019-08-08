@@ -1,32 +1,35 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.pageobject;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ATTACHING_ELEM_TO_DOM_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ELEMENT_TIMEOUT_SEC;
-import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.WIDGET_TIMEOUT_SEC;
-import static org.openqa.selenium.support.ui.ExpectedConditions.elementToBeClickable;
-import static org.openqa.selenium.support.ui.ExpectedConditions.invisibilityOfElementLocated;
-import static org.openqa.selenium.support.ui.ExpectedConditions.textToBe;
-import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOf;
 import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
-import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.FluentWait;
+import org.openqa.selenium.support.ui.Wait;
 
 /**
  * @author Andrey chzhikov
@@ -35,20 +38,18 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 @Singleton
 public class PullRequestPanel {
 
-  private final WebDriverWait loadPageDriverWait;
-  private final WebDriverWait elemDriverWait;
-  private final WebDriverWait widgetDriverWait;
-
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
   private final SeleniumWebDriver seleniumWebDriver;
 
   @Inject private Loader loader;
 
   @Inject
-  public PullRequestPanel(SeleniumWebDriver seleniumWebDriver) {
-    this.seleniumWebDriver = seleniumWebDriver;
-    loadPageDriverWait = new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC);
-    elemDriverWait = new WebDriverWait(seleniumWebDriver, ELEMENT_TIMEOUT_SEC);
-    widgetDriverWait = new WebDriverWait(seleniumWebDriver, WIDGET_TIMEOUT_SEC);
+  public PullRequestPanel(
+      SeleniumWebDriver seleniumWebDriver,
+      SeleniumWebDriverHelper seleniumWebDriverHelper,
+      SeleniumWebDriver seleniumWebDriver1) {
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
+    this.seleniumWebDriver = seleniumWebDriver1;
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
@@ -63,6 +64,7 @@ public class PullRequestPanel {
     static final String PULL_REQUEST_BTN = "gwt-debug-partButton-Pull Request";
     static final String BRANCH_NAME =
         "//div[text()='Branch name:']/following-sibling::div//span/label[text()='%s']";
+    static final String REFRESH_BRANCH_BUTTON = "gwt-debug-refreshContributionBranchButton";
     static final String OK_COMMIT_BTN = "commit-dialog-ok";
     static final String STATUS_OK = "//div[text()='%s']/parent::div//i[@class='fa fa-check']";
     static final String MESSAGE = "gwt-debug-statusSectionMessage";
@@ -72,6 +74,9 @@ public class PullRequestPanel {
         "//div[text()='Repository']/parent::div//i[contains(@class,'fa-code-fork')]/following-sibling::div[text()='%s']";
     static final String URL_ITEM =
         "//div[text()='Repository']/parent::div//i[contains(@class,'fa-link')]/following-sibling::a[@href='%s']";
+    static final String MENU_BUTTON_XPATH = "(//div[@id='gwt-debug-menuButton'])[position()=2]";
+    static final String CONTEXT_HIDE_BUTTON_ID = "gwt-debug-contextMenu/Hide";
+    static final String HIDE_BUTTON_XPATH = "(//div[@id='gwt-debug-hideButton'])[position()=2]";
 
     private PullRequestLocators() {}
   }
@@ -84,7 +89,7 @@ public class PullRequestPanel {
     FORK_CREATED("Fork created"),
     BRANCH_PUSHED_ON_YOUR_FORK("Branch pushed on your fork");
 
-    private String message;
+    private final String message;
 
     Status(String message) {
       this.message = message;
@@ -119,14 +124,35 @@ public class PullRequestPanel {
   @FindBy(id = PullRequestLocators.OK_COMMIT_BTN)
   WebElement okCommitBtn;
 
+  @FindBy(xpath = PullRequestLocators.HIDE_BUTTON_XPATH)
+  WebElement hideButton;
+
+  @FindBy(xpath = PullRequestLocators.MENU_BUTTON_XPATH)
+  WebElement menuButton;
+
+  @FindBy(id = PullRequestLocators.CONTEXT_HIDE_BUTTON_ID)
+  WebElement contextHideButton;
+
+  @FindBy(id = PullRequestLocators.REFRESH_BRANCH_BUTTON)
+  WebElement refreshBranchListButton;
+
   /** Wait that 'Pull Request' panel is open */
   public void waitOpenPanel() {
-    loadPageDriverWait.until(visibilityOf(panel));
+    seleniumWebDriverHelper.waitVisibility(panel);
   }
 
   /** Wait that 'Pull Request' panel is close */
   public void waitClosePanel() {
-    loadPageDriverWait.until(invisibilityOfElementLocated(By.xpath(PullRequestLocators.PANEL)));
+    seleniumWebDriverHelper.waitInvisibility(By.xpath(PullRequestLocators.PANEL));
+  }
+
+  /**
+   * Wait text in the PR panel if a project does not provide VCS
+   *
+   * @param expText expected text which should be in the PR panel
+   */
+  public void waitTextNotVcsProject(String expText) {
+    seleniumWebDriverHelper.waitTextEqualsTo(panel, expText);
   }
 
   /**
@@ -135,7 +161,7 @@ public class PullRequestPanel {
    * @param title text of title
    */
   public void enterTitle(String title) {
-    loadPageDriverWait.until(visibilityOf(titleInput)).sendKeys(title);
+    seleniumWebDriverHelper.waitAndSendKeysTo(titleInput, title);
   }
 
   /**
@@ -144,22 +170,22 @@ public class PullRequestPanel {
    * @param comment text of comment
    */
   public void enterComment(String comment) {
-    loadPageDriverWait.until(visibilityOf(commentTextarea)).sendKeys(comment);
+    seleniumWebDriverHelper.waitAndSendKeysTo(commentTextarea, comment);
   }
 
   /** Click 'Create PR' button on the 'Pull Request' panel */
-  public void clickCreatePRBtn() {
-    elemDriverWait.until(visibilityOf(createPRBtn)).click();
+  public void clickCreatePullRequestButton() {
+    seleniumWebDriverHelper.waitAndClick(createPRBtn);
   }
 
   /** Click 'Update PR' button on the 'Pull Request' panel */
-  public void clickUpdatePRBtn() {
-    elemDriverWait.until(visibilityOf(updatePRBtn)).click();
+  public void clickUpdatePullRequestButton() {
+    seleniumWebDriverHelper.waitAndClick(updatePRBtn, ELEMENT_TIMEOUT_SEC);
   }
 
   /** Click 'Pull Request' button on right panel in the IDE */
   public void clickPullRequestBtn() {
-    elemDriverWait.until(visibilityOf(pullRequestBtn)).click();
+    seleniumWebDriverHelper.waitAndClick(pullRequestBtn, ELEMENT_TIMEOUT_SEC);
   }
 
   /**
@@ -168,24 +194,26 @@ public class PullRequestPanel {
    * @param branchName name of branch
    */
   public void selectBranch(String branchName) {
-    loadPageDriverWait.until(visibilityOf(selectBranch)).click();
-    loadPageDriverWait
-        .until(
-            visibilityOfElementLocated(
-                By.xpath(String.format(PullRequestLocators.BRANCH_NAME, branchName))))
-        .click();
+    seleniumWebDriverHelper.waitAndClick(selectBranch);
+    seleniumWebDriverHelper.waitAndClick(
+        By.xpath(String.format(PullRequestLocators.BRANCH_NAME, branchName)));
+  }
+
+  /** Click 'refresh branch list' button on the 'Pull Request' panel */
+  public void clickRefreshBranchListButton() {
+    seleniumWebDriverHelper.waitAndClick(refreshBranchListButton);
   }
 
   /** Click 'Ok' button in the 'Commit your changes' window */
   public void clickOkCommitBtn() {
-    elemDriverWait.until(visibilityOf(okCommitBtn)).click();
+    seleniumWebDriverHelper.waitAndClick(okCommitBtn);
   }
 
   /** Wait status is 'Ok' in the 'Pull Request' panel */
   public void waitStatusOk(Status status) {
-    widgetDriverWait.until(
-        visibilityOfElementLocated(
-            By.xpath(String.format(PullRequestLocators.STATUS_OK, status.getMessage()))));
+    seleniumWebDriverHelper.waitVisibility(
+        By.xpath(String.format(PullRequestLocators.STATUS_OK, status.getMessage())),
+        WIDGET_TIMEOUT_SEC);
     loader.waitOnClosed();
   }
 
@@ -195,7 +223,7 @@ public class PullRequestPanel {
    * @param message text of message
    */
   public void waitMessage(String message) {
-    loadPageDriverWait.until(textToBe(By.id(PullRequestLocators.MESSAGE), message));
+    seleniumWebDriverHelper.waitTextEqualsTo(By.id(PullRequestLocators.MESSAGE), message);
   }
 
   /**
@@ -204,9 +232,8 @@ public class PullRequestPanel {
    * @param project name of current project
    */
   public void waitProjectName(String project) {
-    loadPageDriverWait.until(
-        visibilityOfElementLocated(
-            By.xpath(String.format(PullRequestLocators.PROJECT_ITEM, project))));
+    seleniumWebDriverHelper.waitVisibility(
+        By.xpath(String.format(PullRequestLocators.PROJECT_ITEM, project)));
   }
 
   /**
@@ -215,9 +242,8 @@ public class PullRequestPanel {
    * @param branch name of branch
    */
   public void waitBranchName(String branch) {
-    loadPageDriverWait.until(
-        visibilityOfElementLocated(
-            By.xpath(String.format(PullRequestLocators.BRANCH_ITEM, branch))));
+    seleniumWebDriverHelper.waitVisibility(
+        By.xpath(String.format(PullRequestLocators.BRANCH_ITEM, branch)));
   }
 
   /**
@@ -226,13 +252,33 @@ public class PullRequestPanel {
    * @param url URL of current project
    */
   public void waitRepoUrl(String url) {
-    loadPageDriverWait.until(
-        visibilityOfElementLocated(By.xpath(String.format(PullRequestLocators.URL_ITEM, url))));
+    seleniumWebDriverHelper.waitVisibility(
+        By.xpath(String.format(PullRequestLocators.URL_ITEM, url)));
   }
 
   public void openPullRequestOnGitHub() {
-    loadPageDriverWait
-        .until(elementToBeClickable(By.xpath(PullRequestLocators.OPEN_GITHUB_BTN)))
-        .click();
+    Wait<WebDriver> wait =
+        new FluentWait(seleniumWebDriver)
+            .withTimeout(ATTACHING_ELEM_TO_DOM_SEC, SECONDS)
+            .pollingEvery(500, MILLISECONDS)
+            .ignoring(WebDriverException.class);
+    wait.until(visibilityOfElementLocated(By.xpath(PullRequestLocators.OPEN_GITHUB_BTN))).click();
+  }
+
+  /** click on the 'Hide' button */
+  public void closePanelByHideButton() {
+    seleniumWebDriverHelper.waitAndClick(hideButton);
+    waitClosePanel();
+  }
+
+  /** open the menu 'Options' */
+  public void openOptionsMenu() {
+    seleniumWebDriverHelper.waitAndClick(menuButton);
+  }
+
+  /** click on the 'Hide' button in the menu 'Options' */
+  public void closePanelFromContextMenu() {
+    seleniumWebDriverHelper.waitAndClick(contextHideButton);
+    waitClosePanel();
   }
 }

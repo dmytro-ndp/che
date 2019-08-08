@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,6 +14,8 @@ package org.eclipse.che.api.workspace.server;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
+import io.opentracing.Tracer;
+import io.opentracing.contrib.concurrent.TracedExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -42,7 +45,9 @@ public class WorkspaceSharedPool {
   public WorkspaceSharedPool(
       @Named("che.workspace.pool.type") String poolType,
       @Named("che.workspace.pool.exact_size") @Nullable String exactSizeProp,
-      @Named("che.workspace.pool.cores_multiplier") @Nullable String coresMultiplierProp) {
+      @Named("che.workspace.pool.cores_multiplier") @Nullable String coresMultiplierProp,
+      Tracer tracer) {
+
     ThreadFactory factory =
         new ThreadFactoryBuilder()
             .setNameFormat("WorkspaceSharedPool-%d")
@@ -51,7 +56,7 @@ public class WorkspaceSharedPool {
             .build();
     switch (poolType.toLowerCase()) {
       case "cached":
-        executor = Executors.newCachedThreadPool(factory);
+        executor = new TracedExecutorService(Executors.newCachedThreadPool(factory), tracer);
         break;
       case "fixed":
         Integer exactSize = exactSizeProp == null ? null : Ints.tryParse(exactSizeProp);
@@ -66,7 +71,7 @@ public class WorkspaceSharedPool {
             size *= coresMultiplier;
           }
         }
-        executor = Executors.newFixedThreadPool(size, factory);
+        executor = new TracedExecutorService(Executors.newFixedThreadPool(size, factory), tracer);
         break;
       default:
         throw new IllegalArgumentException(
@@ -74,7 +79,10 @@ public class WorkspaceSharedPool {
     }
   }
 
-  /** Returns an {@link ExecutorService} managed by this pool instance. */
+  /**
+   * Returns an {@link ExecutorService} managed by this pool instance. The executor service is
+   * tracing aware and will propagate the active tracing span, if any, to the submitted tasks.
+   */
   public ExecutorService getExecutor() {
     return executor;
   }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,6 +16,7 @@ import static org.slf4j.LoggerFactory.getLogger;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerManager;
 import org.slf4j.Logger;
 
@@ -57,5 +59,14 @@ public class FunctionConfiguratorNoneToMany<R> {
             + rClass);
 
     handlerManager.registerNoneToMany(method, rClass, function);
+  }
+
+  /**
+   * Define a supplier to be applied
+   *
+   * @param supplier supplier
+   */
+  public void withSupplier(Supplier<List<R>> supplier) {
+    withFunction(s -> supplier.get());
   }
 }

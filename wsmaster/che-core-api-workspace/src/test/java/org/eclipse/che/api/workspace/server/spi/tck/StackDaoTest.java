@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,7 +14,7 @@ package org.eclipse.che.api.workspace.server.spi.tck;
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 import static org.eclipse.che.api.workspace.server.spi.tck.WorkspaceDaoTest.createWorkspaceConfig;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -30,13 +31,11 @@ import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.notification.EventService;
-import org.eclipse.che.api.machine.server.spi.SnapshotDao;
 import org.eclipse.che.api.workspace.server.event.BeforeStackRemovedEvent;
 import org.eclipse.che.api.workspace.server.event.StackPersistedEvent;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.stack.StackComponentImpl;
 import org.eclipse.che.api.workspace.server.model.impl.stack.StackImpl;
-import org.eclipse.che.api.workspace.server.model.impl.stack.StackSourceImpl;
 import org.eclipse.che.api.workspace.server.spi.StackDao;
 import org.eclipse.che.api.workspace.server.stack.image.StackIcon;
 import org.eclipse.che.commons.test.tck.TckListener;
@@ -50,7 +49,7 @@ import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
 /**
- * Tests {@link SnapshotDao} contract.
+ * Tests {@link StackDao} contract.
  *
  * @author Yevhenii Voevodin
  */
@@ -111,9 +110,8 @@ public class StackDaoTest {
   }
 
   @Test(
-    dependsOnMethods = "shouldThrowNotFoundExceptionWhenGettingNonExistingStack",
-    expectedExceptions = NotFoundException.class
-  )
+      dependsOnMethods = "shouldThrowNotFoundExceptionWhenGettingNonExistingStack",
+      expectedExceptions = NotFoundException.class)
   public void shouldNotCreateStackWhenSubscriberThrowsExceptionOnStackStoring() throws Exception {
     final StackImpl stack = createStack("new-stack", "new-stack-name");
 
@@ -153,9 +151,8 @@ public class StackDaoTest {
   }
 
   @Test(
-    expectedExceptions = NotFoundException.class,
-    dependsOnMethods = "shouldThrowNotFoundExceptionWhenGettingNonExistingStack"
-  )
+      expectedExceptions = NotFoundException.class,
+      dependsOnMethods = "shouldThrowNotFoundExceptionWhenGettingNonExistingStack")
   public void shouldRemoveStack() throws Exception {
     final StackImpl stack = stacks[0];
 
@@ -213,11 +210,6 @@ public class StackDaoTest {
     final StackComponentImpl component = stack.getComponents().get(0);
     component.setName("new-name");
     component.setVersion("new-version");
-
-    // Updating source
-    final StackSourceImpl source = stack.getSource();
-    source.setType("new-type");
-    source.setOrigin("new-source");
 
     // Set a new icon
     stack.setStackIcon(new StackIcon("new-name", "new-media", "new-data".getBytes()));
@@ -303,7 +295,6 @@ public class StackDaoTest {
                 asList(
                     new StackComponentImpl(id + "-component1", id + "-component1-version"),
                     new StackComponentImpl(id + "-component2", id + "-component2-version")))
-            .setSource(new StackSourceImpl(id + "-type", id + "-origin"))
             .setStackIcon(
                 new StackIcon(id + "-icon", id + "-media-type", "0x1234567890abcdef".getBytes()))
             .build();

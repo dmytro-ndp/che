@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -24,11 +25,41 @@ describe('Simple dockerfile parser >', () => {
     parser = new DockerfileParser();
   });
 
+  describe('parsing comments >', () => {
+
+    it('should parse commented line', () => {
+      const dockerfile = `# commented line
+FROM eclipse/ubuntu_jdk8`;
+
+      const result = parser.parse(dockerfile);
+
+      const expectedResult = [{
+        comment: '# commented line'
+      }, {
+        instruction: 'FROM',
+        argument: 'eclipse/ubuntu_jdk8'
+      }];
+
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should throw an error if there no dockerfile instructions found', () => {
+      const dockerfile = `# commented line`;
+
+      const parseFn = function() {
+        parser.parse(dockerfile);
+      };
+
+      expect(parseFn).toThrowError();
+    });
+
+  });
+
   describe('parsing directives >', () => {
 
     it(`should know 'escape' directive`, () => {
       const dockerfile = `# escape=\\
-FROM codenvy/ubuntu_jdk8`;
+FROM eclipse/ubuntu_jdk8`;
 
       const result = parser.parse(dockerfile);
 
@@ -36,7 +67,7 @@ FROM codenvy/ubuntu_jdk8`;
         directive: '# escape=\\'
       }, {
         instruction: 'FROM',
-        argument: 'codenvy/ubuntu_jdk8'
+        argument: 'eclipse/ubuntu_jdk8'
       }];
 
       expect(result).toEqual(expectedResult);
@@ -44,7 +75,7 @@ FROM codenvy/ubuntu_jdk8`;
 
     it(`should treat unknown directive as a comment`, () => {
       const dockerfile = `# directive=value
-FROM codenvy/ubuntu_jdk8`;
+FROM eclipse/ubuntu_jdk8`;
 
       const result = parser.parse(dockerfile);
 
@@ -52,7 +83,7 @@ FROM codenvy/ubuntu_jdk8`;
         comment: '# directive=value'
       }, {
         instruction: 'FROM',
-        argument: 'codenvy/ubuntu_jdk8'
+        argument: 'eclipse/ubuntu_jdk8'
       }];
 
       expect(result).toEqual(expectedResult);
@@ -61,7 +92,7 @@ FROM codenvy/ubuntu_jdk8`;
     it(`should throw an error if there are two identical directives`, () => {
       const dockerfile = `# escape=\\
 # escape=\`
-FROM codenvy/ubuntu_jdk8`;
+FROM eclipse/ubuntu_jdk8`;
       const parse =  () => {
         parser.parse(dockerfile);
       };
@@ -72,7 +103,7 @@ FROM codenvy/ubuntu_jdk8`;
     it(`should treat known directive as a comment after an empty line`, () => {
       const dockerfile = `
 # escape=\\
-FROM codenvy/ubuntu_jdk8`;
+FROM eclipse/ubuntu_jdk8`;
 
       const result = parser.parse(dockerfile);
 
@@ -82,7 +113,7 @@ FROM codenvy/ubuntu_jdk8`;
         comment: '# escape=\\'
       }, {
         instruction: 'FROM',
-        argument: 'codenvy/ubuntu_jdk8'
+        argument: 'eclipse/ubuntu_jdk8'
       }];
 
       expect(result).toEqual(expectedResult);
@@ -91,7 +122,7 @@ FROM codenvy/ubuntu_jdk8`;
     it(`should treat known directive as a comment after a comment`, () => {
       const dockerfile = `# comment line
 # escape=\\
-FROM codenvy/ubuntu_jdk8`;
+FROM eclipse/ubuntu_jdk8`;
 
       const result = parser.parse(dockerfile);
 
@@ -101,21 +132,21 @@ FROM codenvy/ubuntu_jdk8`;
         comment: '# escape=\\'
       }, {
         instruction: 'FROM',
-        argument: 'codenvy/ubuntu_jdk8'
+        argument: 'eclipse/ubuntu_jdk8'
       }];
 
       expect(result).toEqual(expectedResult);
     });
 
     it(`should treat known directive as a comment after a builder instruction`, () => {
-      const dockerfile = `FROM codenvy/ubuntu_jdk8
+      const dockerfile = `FROM eclipse/ubuntu_jdk8
 # escape=\\`;
 
       const result = parser.parse(dockerfile);
 
       const expectedResult = [{
         instruction: 'FROM',
-        argument: 'codenvy/ubuntu_jdk8'
+        argument: 'eclipse/ubuntu_jdk8'
       }, {
         comment: '# escape=\\'
       }];
@@ -172,7 +203,7 @@ FROM codenvy/ubuntu_jdk8`;
 
       it('should parse single environment variable with backslashes', () => {
         const dockerfile = `# escape=\\
-FROM codenvy/ubuntu_jdk8
+FROM eclipse/ubuntu_jdk8
 ENV myDog=Rex\\ The\\ Dog`;
 
         const result = parser.parse(dockerfile);
@@ -181,7 +212,7 @@ ENV myDog=Rex\\ The\\ Dog`;
           directive: '# escape=\\'
         }, {
           instruction: 'FROM',
-          argument: 'codenvy/ubuntu_jdk8'
+          argument: 'eclipse/ubuntu_jdk8'
         }, {
           instruction: 'ENV',
           argument: ['myDog', 'Rex The Dog']
@@ -192,7 +223,7 @@ ENV myDog=Rex\\ The\\ Dog`;
 
       it('should parse single environment variable with backtick', () => {
         const dockerfile = `# escape=\`
-FROM codenvy/ubuntu_jdk8
+FROM eclipse/ubuntu_jdk8
 ENV myDog=Rex\` The\` Dog`;
 
         const result = parser.parse(dockerfile);
@@ -201,7 +232,7 @@ ENV myDog=Rex\` The\` Dog`;
           directive: '# escape=\`'
         }, {
           instruction: 'FROM',
-          argument: 'codenvy/ubuntu_jdk8'
+          argument: 'eclipse/ubuntu_jdk8'
         }, {
           instruction: 'ENV',
           argument: ['myDog', 'Rex The Dog']
@@ -308,7 +339,7 @@ ENV myDog=Rex\` The\` Dog`;
   it('should parse a dockerfile', () => {
     const dockerfile = `# escape=\\
 
-FROM codenvy/ubuntu_jdk8
+FROM eclipse/ubuntu_jdk8
 #ENV myCat fluffy
 ENV myDog Rex The Dog
 ENV myName="John Doe"
@@ -325,7 +356,7 @@ ENV myVal=\\\\\\ \\\\\\\\`;
       emptyLine: true
     }, {
       instruction: 'FROM',
-      argument: 'codenvy/ubuntu_jdk8'
+      argument: 'eclipse/ubuntu_jdk8'
     }, {
       comment: '#ENV myCat fluffy'
     }, {
@@ -351,7 +382,7 @@ ENV myVal=\\\\\\ \\\\\\\\`;
       emptyLine: true
     }, {
       instruction: 'FROM',
-      argument: 'codenvy/ubuntu_jdk8'
+      argument: 'eclipse/ubuntu_jdk8'
     }, {
       comment: '#ENV myCat fluffy'
     }, {
@@ -372,7 +403,7 @@ ENV myVal=\\\\\\ \\\\\\\\`;
 
     const expectedResult = `# escape=\\
 
-FROM codenvy/ubuntu_jdk8
+FROM eclipse/ubuntu_jdk8
 #ENV myCat fluffy
 ENV myDog Rex The Dog
 ENV myName John Doe

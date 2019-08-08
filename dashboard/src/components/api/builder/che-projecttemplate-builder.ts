@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,48 +17,49 @@
  */
 export class CheProjectTemplateBuilder {
 
-  constructor() {
-    this.template = {};
-    this.template.source = {};
-    this.template.config = {};
+  template: che.IProjectTemplate;
 
+  constructor() {
+    this.template = {} as che.IProjectTemplate;
+    this.template.source = {} as che.IProjectSource;
   }
-  withDescription(desc) {
+
+  withDescription(desc: string): CheProjectTemplateBuilder {
     this.template.description = desc;
     return this;
   }
 
-  withSourceParameters(parameters) {
+  withSourceParameters(parameters: {[paramName: string]: string}): CheProjectTemplateBuilder {
     this.template.source.parameters = parameters;
     return this;
   }
 
-  withSourceType(type) {
+  withSourceType(type: string): CheProjectTemplateBuilder {
     this.template.source.type = type;
     return this;
   }
 
-  withSourceLocation(location) {
+  withSourceLocation(location: string): CheProjectTemplateBuilder {
     this.template.source.location = location;
     return this;
   }
 
-  withDisplayname(name) {
+  withDisplayname(name: string): CheProjectTemplateBuilder {
   this.template.displayName = name;
     return this;
   }
 
-  withCategory(category) {
+  withCategory(category: string): CheProjectTemplateBuilder {
     this.template.category = category;
     return this;
   }
 
-  withProjectType(projectType) {
+  withProjectType(projectType: string): CheProjectTemplateBuilder {
     this.template.projectType = projectType;
     return this;
   }
 
-  build() {
+  build(): che.IProjectTemplate {
     return this.template;
   }
 
